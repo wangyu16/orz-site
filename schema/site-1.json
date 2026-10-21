@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cdn.jsdelivr.net/npm/orz-site@0.1/schema/site-1.json",
+  "title": "orz-site.json (config format 1)",
+  "description": "The config of an orz-site static site (orz-site spec/site.md §3, family contract FC-20). Unknown keys are errors. The config format version is independent of the orz-site package version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format"],
+  "properties": {
+    "$schema": { "type": "string", "description": "This schema's URL (for editors)." },
+    "format": { "const": 1, "description": "The config format version. A newer format is refused (newer-config)." },
+    "carriers": {
+      "type": "object",
+      "description": "The exact shell version per kind (an npm version of orz-mdhtml / orz-slides / orz-paged). A kind the site does not use may be omitted; `orz-site check` requires a pin for every kind used.",
+      "additionalProperties": false,
+      "properties": {
+        "md": { "$ref": "#/$defs/version" },
+        "slides": { "$ref": "#/$defs/version" },
+        "paged": { "$ref": "#/$defs/version" }
+      }
+    },
+    "delivery": { "enum": ["cdn", "inline"], "default": "cdn", "description": "Delivery of every page's engine: cdn (from jsDelivr; the right choice for sites, FD-07) or inline (embedded)." },
+    "inline": { "$ref": "#/$defs/globs", "default": [], "description": "Documents assembled inline anyway (e.g. a handout meant to be downloaded and used offline)." },
+    "naming": {
+      "description": "Output names. \"family\" = FC-18's twins (x.md → x.md.html, x.slides.md → x.slides.html, x.paged.md → x.paged.html). Per-kind templates ({ \"md\": \"{stem}.html\" }) are valid here but refused by orz-site 0.1 (naming-needs-kit): they need the kit's twinLinks option (K1).",
+      "default": "family",
+      "oneOf": [
+        { "const": "family" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "md": { "$ref": "#/$defs/template" },
+            "slides": { "$ref": "#/$defs/template" },
+            "paged": { "$ref": "#/$defs/template" }
+          }
+        }
+      ]
+    },
+    "baseUrl": {
+      "description": "The site's absolute URL, ending in /. `orz-site build --base-url` overrides it (route A passes the Pages URL). Needed for the sitemap and own-host includes.",
+      "default": null,
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "uri", "pattern": "^https?://[^?#]*/$" }
+      ]
+    },
+    "includes": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Includes resolved at build time (spec §2.5).",
+      "properties": {
+        "allowedHosts": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?$" }, "default": [], "description": "Hosts whose https URLs may be included (fetched once per build; SHA-256 in the manifest). The site's own host is read from the site's files, never the network." },
+        "network": { "type": "boolean", "default": true, "description": "false: fetch nothing (like --offline); a URL include on another host is then include-network." },
+        "missing": { "enum": ["error", "warn"], "default": "error", "description": "A missing or refused include: error (default) or warn (the page shows the kit's 'Included file not available' note)." }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "missing": { "enum": ["error", "warn"], "default": "error", "description": "A link to a text that is not built (missing, excluded, empty, outside the root)." }
+      }
+    },
+    "exclude": { "$ref": "#/$defs/globs", "default": [], "description": "Paths neither built nor published (still readable as file include sources). Always excluded besides: dot paths, node_modules/, names ending in ~, orz-site.json, the output folder." },
+    "texts": { "type": "boolean", "default": true, "description": "Also publish each document's text twin as is (x.slides.md next to x.slides.html)." },
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The generated index: an orz md document assembled by the pinned orz-mdhtml.",
+      "properties": {
+        "mode": { "enum": ["auto", "on", "off"], "default": "auto", "description": "auto: write index.html when no page or asset is index.html; on: always (a clash is name-collision); off: never." },
+        "title": { "type": ["string", "null"], "minLength": 1, "default": null, "description": "The index title (default \"Contents\")." },
+        "theme": { "type": ["string", "null"], "pattern": "^[a-z0-9-]+$", "default": null, "description": "A theme id of orz-mdhtml, or null for its default." },
+        "lang": { "type": "string", "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$", "default": "en", "description": "BCP 47 language of the index." }
+      }
+    },
+    "sitemap": { "type": "boolean", "default": true, "description": "Write sitemap.xml (needs baseUrl)." },
+    "notFound": {
+      "description": "A text at the site root whose page is written as 404.html instead of its own name.",
+      "default": null,
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[^/\\\\]+\\.md$" }
+      ]
+    }
+  },
+  "$defs": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$", "description": "An exact npm version (no range)." },
+    "template": { "type": "string", "pattern": "^[A-Za-z0-9._-]*\\{stem\\}[A-Za-z0-9._-]*\\.html$", "description": "A file-name template: {stem} once, otherwise A-Z a-z 0-9 . _ -, ending in .html, no /." },
+    "globs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "pattern": "^[^!/\\\\{}\\[\\]][^\\\\{}\\[\\]]*$" },
+      "description": "Globs on site paths: * (not /), ** (any depth), ?; a pattern ending in / is the folder and everything under it. No negation, braces or classes."
+    }
+  }
+}
