@@ -1,0 +1,83 @@
+{
+  "name": "orz-site",
+  "version": "0.1.0",
+  "description": "A folder of orz texts (Markdown documents, slide decks, paged documents) as a static site of self-editing pages — for GitHub Pages and any static host.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Yu Wang",
+  "keywords": [
+    "orz",
+    "markdown",
+    "static-site",
+    "github-pages",
+    "slides",
+    "self-editing"
+  ],
+  "bin": {
+    "orz-site": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    },
+    "./schema/site-1.json": "./schema/site-1.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "spec/site.md",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.16"
+  },
+  "scripts": {
+    "prebuild": "tsx scripts/sync-version.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "pretest": "tsx scripts/sync-version.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "fixture": "tsx scripts/build-fixture.ts",
+    "prepublishOnly": "npm run build && tsx scripts/release-check.ts --after-build && tsx scripts/test-release.ts --check",
+    "release:check": "tsx scripts/release-check.ts",
+    "test:fast": "tsx scripts/test-release.ts --fast",
+    "test:changed": "tsx scripts/test-release.ts --changed",
+    "test:release": "tsx scripts/test-release.ts"
+  },
+  "peerDependencies": {
+    "orz-markdown": "^2.4.0",
+    "orz-mdhtml": "^1.0.2",
+    "orz-slides": "^1.0.0",
+    "orz-paged": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "orz-mdhtml": {
+      "optional": true
+    },
+    "orz-slides": {
+      "optional": true
+    },
+    "orz-paged": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "orz-markdown": "2.4.0",
+    "orz-mdhtml": "1.0.2",
+    "orz-paged": "1.0.0",
+    "orz-slides": "1.0.0",
+    "playwright-core": "1.64.0",
+    "tsx": "4.22.4",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

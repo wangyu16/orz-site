@@ -1,0 +1,33 @@
+{
+  "$comment": "Release facts of this package, read by scripts/release-check.ts and scripts/test-release.ts (the family tooling, identical in every orz package; family root notes/PHASE4-CLAIMS.md). orz-site has no browser package (one package; the main entry is browser-safe) and no `kit` entry: the kit and the carriers are PEER dependencies (the site's config pins the carriers), which the gate's kit checks (a ^range in `dependencies`, a bundled kit) do not apply to.",
+  "browser": null,
+  "kit": null,
+  "manifest": null,
+  "bundles": [
+    "dist"
+  ],
+  "checks": [],
+  "build": [
+    "npm",
+    "run",
+    "build"
+  ],
+  "changelog": "CHANGELOG.md",
+  "test": {
+    "fast": [
+      "--project",
+      "main"
+    ],
+    "changedAll": [
+      "package.json",
+      "package-lock.json",
+      "vitest.config.ts",
+      "release.config.json",
+      "tests/helpers.ts",
+      "fixtures/"
+    ],
+    "chrome": true,
+    "retries": 2,
+    "base": "main"
+  }
+}
