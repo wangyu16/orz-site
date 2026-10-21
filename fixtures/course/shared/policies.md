@@ -1,0 +1,3 @@
+- Lessons are published every Tuesday; decks the evening before class.
+- Each page can be saved with your own notes: use **Save** in the page's menu.
+- Questions go to the course forum.

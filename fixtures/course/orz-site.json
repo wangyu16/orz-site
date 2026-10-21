@@ -1,0 +1,16 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/npm/orz-site@0.1/schema/site-1.json",
+  "format": 1,
+  "carriers": { "md": "1.0.2", "slides": "1.0.0", "paged": "1.0.0" },
+  "delivery": "cdn",
+  "inline": ["handouts/**"],
+  "naming": "family",
+  "baseUrl": "https://owner.github.io/bio101/",
+  "includes": { "allowedHosts": [], "network": true, "missing": "error" },
+  "links": { "missing": "error" },
+  "exclude": ["drafts/", "shared/"],
+  "texts": true,
+  "index": { "mode": "auto", "title": "BIO 101 · All materials", "theme": null, "lang": "en" },
+  "sitemap": true,
+  "notFound": "404.md"
+}
