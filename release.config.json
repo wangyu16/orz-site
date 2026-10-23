@@ -28,6 +28,6 @@
     ],
     "chrome": true,
     "retries": 2,
-    "base": "main"
+    "base": "origin/main"
   }
 }
