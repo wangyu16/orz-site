@@ -197,7 +197,7 @@ per-kind **templates**; a kind left out keeps the family name:
   every relative asset link of the document still resolves.
 - Directory naming (`x/index.html`) is **not** offered: it moves the page one
   folder down and breaks its relative links. **[Q2]** GitHub Pages already
-  serves `x.html` at `/x` **[unsure: verify on a Pages site]**.
+  serves `x.html` at `/x` (verified on a Pages site, S.13, 2026-10-23: `/404`, `/index`, `/slides/week1.slides` serve the `.html`).
 - A non-family name drops the dual extension from the published URL; the
   file's identity is then its `#orz-shell` / `data-orz-kind` (FC-08) — see
   K1 in §13 for the "Save as" name.
@@ -552,7 +552,7 @@ jobs:
   **[Q4 covers whether actions are pinned by commit SHA]**. A shell update
   is "edit the pin in `orz-site.json`, run `orz-site init --github
   --update`" — one commit.
-- `configure-pages`' `base_url` has no trailing `/` **[unsure: check]**,
+- `configure-pages`' `base_url` has no trailing `/` (verified, S.13, 2026-10-23: the build with `${base_url}/` equals a local build with one `/`),
   hence the `/`.
 - A repository with its own `package.json` may instead add orz-site and the
   carriers as dev dependencies and let its lockfile pin them; `check` then
