@@ -8,12 +8,11 @@
  * (`env.carriers`); the Node adapter (`orz-site/node`) loads the installed
  * packages.
  */
-import { extract as kitExtract, decodeText, kindFromFilename, twinName, withoutHeader } from 'orz-markdown/carrier';
+import { extract as kitExtract, decodeText, includeTargets as kitIncludeTargets, kindFromFilename, linkTargets as kitLinkTargets, sameTwinNaming, twinFileName, twinNaming, withoutHeader, type TwinNaming } from 'orz-markdown/carrier';
 import { CONFIG_FILE, baseUrlProblem, defaultConfig, validateConfig } from './config.js';
 import { matchesAny } from './glob.js';
 import { indexText, type IndexEntry } from './index-page.js';
 import { defaultFetch, isSoftInclude, recordHash, resolveIncludes, type IncludeContext } from './includes.js';
-import { linkTargets as localLinkTargets } from './links.js';
 import { baseOf, byCodeUnits, decodePath, dirOf, encodePath, resolveIn, sitePathProblem } from './paths.js';
 import { KINDS, type BuildEnv, type BuildResult, type CarrierModule, type DocumentInfo, type Finding, type Kind, type LinkRef, type Manifest, type ManifestDocument, type Report, type SiteConfig, type SiteFiles } from './types.js';
 import { canonicalJson, sha256Hex, utf8 } from './util.js';
@@ -96,6 +95,12 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
     baseUrl = env.baseUrl;
   }
 
+  // The site's naming, normalized by the kit (null = the family's: x.md → x.md.html). A non-family naming
+  // reaches every page as the kit's `twinLinks` (K1, orz-markdown 2.5.0): the carriers store it in the file
+  // and render its links with it (spec §4.2 option A); carriers before 1.1 do not (`naming-unsupported`).
+  const naming: TwinNaming | null = cfg.naming === 'family' ? null : twinNaming(cfg.naming);
+  const withNaming = naming ? { twinLinks: naming } : {};
+
   // ── the file map ─────────────────────────────────────────────────────────
   const paths = [...files.keys()].sort(byCodeUnits);
   if (paths.length > LIMITS.files) add({ code: 'too-many-files', message: `${paths.length} files, more than ${LIMITS.files} (spec §10)` });
@@ -145,13 +150,16 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
     }
     carrierOk.set(kind, c);
   }
+  // The targets of a text as the pinned carrier's kit parses them (carriers ≥ 1.1 re-export the kit's
+  // `includeTargets`/`linkTargets`); else the host's override; else this package's kit (orz-markdown ≥ 2.5,
+  // browser-safe), so Node and the browser read the same targets (S.2).
   const includeTargets = (kind: Kind) => (text: string): string[] => {
     const c = carrierOk.get(kind);
     if (c?.includeTargets) return c.includeTargets(text);
     if (env.includeTargets) return env.includeTargets(text);
-    throw new TypeError('orz-site: no includeTargets — pass a carrier with includeTargets (K2) or env.includeTargets (the kit\'s orz-markdown/carrier/node includeTargets)');
+    return kitIncludeTargets(text);
   };
-  const linksOf = (kind: Kind, text: string): LinkRef[] => carrierOk.get(kind)?.linkTargets?.(text) ?? localLinkTargets(text);
+  const linksOf = (kind: Kind, text: string): LinkRef[] => carrierOk.get(kind)?.linkTargets?.(text) ?? kitLinkTargets(text);
 
   // ── documents ────────────────────────────────────────────────────────────
   const docs: Doc[] = [];
@@ -190,7 +198,7 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
       add({ code: 'empty-text', message: 'the text has no body: no page is built (links to it are missing-link)', path: p }, 'warning');
       skipped.push({ path: p, reason: 'empty-text' }); notBuilt.set(p, 'empty'); continue;
     }
-    const output = cfg.notFound === p ? GENERATED.notFound : (twinName(p) as string);
+    const output = cfg.notFound === p ? GENERATED.notFound : `${dirOf(p) ? `${dirOf(p)}/` : ''}${twinFileName(baseOf(p), naming) as string}`;
     const delivery = matchesAny(p, cfg.inline) ? 'inline' : cfg.delivery;
     docs.push({ path: p, bytes, text, kind, carrier, info, output, delivery });
   }
@@ -306,6 +314,20 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
 
   if (errors.length > 0) return refused(errors, warnings, cfg, baseUrl);
 
+  // A non-family naming must reach the file: the carrier's own `extract` reads it back from `#orz-shell`.
+  // A carrier before 1.1 ignores `twinLinks`: its page would link to the family names — refused, once per kind.
+  const unsupported = new Set<Kind>();
+  function carriesNaming(kind: Kind, c: CarrierModule, html: string): boolean {
+    if (!naming) return true;
+    if (unsupported.has(kind)) return false;
+    let got: unknown;
+    try { got = c.extract(html)?.twinLinks; } catch { got = undefined; }
+    if (sameTwinNaming(got, naming)) return true;
+    unsupported.add(kind);
+    add({ code: 'naming-unsupported', message: `${CONFIG_FILE} names pages ${JSON.stringify(naming)}, but ${PACKAGE[kind]} ${c.version} does not carry a naming into its files (twinLinks): its pages would link to the family names. Pin ${PACKAGE[kind]} 1.1.0 or later in "carriers", or use "naming": "family"`, path: CONFIG_FILE, target: `carriers.${kind}` });
+    return false;
+  }
+
   // ── assemble ─────────────────────────────────────────────────────────────
   const out = new Map<string, Uint8Array>();
   const manifestDocs: ManifestDocument[] = [];
@@ -323,7 +345,8 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
     }
     if (!html) {
       try {
-        const s = await d.carrier.assemble(d.text, { delivery: d.delivery, ...(Object.keys(r.record).length > 0 ? { includes: r.record } : {}) });
+        const s = await d.carrier.assemble(d.text, { delivery: d.delivery, ...(Object.keys(r.record).length > 0 ? { includes: r.record } : {}), ...withNaming });
+        if (!carriesNaming(d.kind, d.carrier, s)) continue;
         html = utf8(s);
       } catch (e) {
         add({ code: 'invalid-text', message: `${PACKAGE[d.kind]} ${d.carrier.version} cannot assemble it: ${(e as Error).message}`, path: d.path });
@@ -352,10 +375,13 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
     const text = indexText(entries, cfg.index);
     const delivery = matchesAny(GENERATED.indexText, cfg.inline) ? 'inline' : cfg.delivery;
     let html: Uint8Array;
-    try { html = utf8(await md.assemble(text, { delivery })); } catch (e) {
+    let s: string;
+    try { s = await md.assemble(text, { delivery, ...withNaming }); } catch (e) {
       add({ code: 'invalid-text', message: `the generated index cannot be assembled: ${(e as Error).message}`, path: GENERATED.index });
       return refused(errors, warnings, cfg, baseUrl);
     }
+    if (!carriesNaming('md', md, s)) return refused(errors, warnings, cfg, baseUrl);
+    html = utf8(s);
     out.set(GENERATED.index, html);
     if (publishIndexText) out.set(GENERATED.indexText, utf8(text));
     generated.push({ path: GENERATED.index, sha256: await sha256Hex(html), source: text, ...(publishIndexText ? { text: GENERATED.indexText } : {}) });

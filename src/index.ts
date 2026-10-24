@@ -10,7 +10,7 @@ export { validateConfig, parseConfig, defaultConfig, templateProblem, baseUrlPro
 export { globRegExp, globProblem, matchesAny } from './glob.js';
 export { indexText, escapeInline, type IndexEntry } from './index-page.js';
 export { defaultFetch, IncludeFetchError, rootKey, MAX_INCLUDE_CHARS, FETCH_TIMEOUT_MS, MAX_URL_DEPTH } from './includes.js';
-export { linkTargets, linkKind } from './links.js';
+export { includeTargets, linkTargets, type LinkTarget } from 'orz-markdown/carrier';
 export { sitePathProblem, resolveIn, encodePath } from './paths.js';
 export { workflowText, workflowPins, workflowDrift, differsOnlyInVersions, WORKFLOW_FILE } from './workflow.js';
 export { canonicalJson, sha256Hex } from './util.js';

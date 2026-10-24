@@ -31,7 +31,7 @@ function runNext(next: { tool?: string; command: string; args: string[] }, cwd: 
 
 /** Every code the spec lists (§7.2), plus the ones 0.1 adds. */
 const CODES = new Set(['bad-config', 'unknown-key', 'newer-config', 'no-config', 'shell-mismatch', 'naming-unsupported', 'name-collision', 'case-collision', 'not-utf8', 'invalid-text', 'newer-format', 'carrier-mismatch', 'empty-text', 'assembled-input', 'legacy-file', 'missing-link', 'missing-asset', 'raw-twin-link', 'root-relative', 'case-link', 'include-missing', 'include-host', 'include-network', 'include-too-large', 'include-key-clash', 'include-own-output', 'outside-root', 'symlink-out', 'too-large', 'too-many-files', 'no-base-url', 'out-not-site', 'workflow-drift', 'exists', 'write-failed',
-  /* 0.1 additions */ 'naming-needs-kit', 'no-carrier', 'no-pin', 'unreadable', 'bad-usage', 'no-such-file', 'refused', 'failed']);
+  /* 0.1 additions */ 'no-carrier', 'no-pin', 'unreadable', 'bad-usage', 'no-such-file', 'refused', 'failed']);
 
 describe('[S.9] confinement', () => {
   it('site paths with .., absolute, backslash or NUL are refused (outside-root)', async () => {
@@ -165,7 +165,7 @@ describe('[S.11] the CLI: exit codes, --json, next', () => {
 
     expect(cli(['init', '.', '--github'], dir).status).toBe(0);
     const wf = join(dir, '.github', 'workflows', 'orz-site.yml');
-    writeFileSync(wf, readFileSync(wf, 'utf8').replace('orz-slides@1.0.0', 'orz-slides@0.9.0'));
+    writeFileSync(wf, readFileSync(wf, 'utf8').replace(`orz-slides@${PINS.slides}`, 'orz-slides@0.9.0'));
     const c3 = cli(['check', '.', '--json'], dir);
     expect(c3.json).toMatchObject({ ok: false, reason: 'workflow-drift', next: { command: 'init', args: ['.', '--github', '--update'] } });
     expect(runNext(c3.json.next, dir)).toBe(0);
@@ -206,8 +206,12 @@ describe('init and route A\'s workflow (spec §8)', () => {
     expect(r.json).toMatchObject({ ok: true, command: 'init', written: ['orz-site.json', '.github/workflows/orz-site.yml'], carriers: PINS });
     const wf = readFileSync(join(dir, '.github', 'workflows', 'orz-site.yml'), 'utf8');
     expect(wf).toBe(workflowText('0.1.0', PINS));
-    expect(wf).toContain('orz-site@0.1.0 orz-mdhtml@1.0.2 orz-slides@1.0.0 orz-paged@1.0.0');
-    for (const a of ['actions/checkout@v4', 'actions/setup-node@v4', 'actions/configure-pages@v5', 'actions/upload-pages-artifact@v3', 'actions/deploy-pages@v4']) expect(wf).toContain(a);
+    expect(wf).toContain(`orz-site@0.1.0 orz-mdhtml@${PINS.md} orz-slides@${PINS.slides} orz-paged@${PINS.paged}`);
+    // D-122: the majors current on 2026-10-24, all on GitHub's Node 24 runtime; none of the Node 20 ones
+    for (const a of ['actions/checkout@v7', 'actions/setup-node@v7', 'actions/cache@v6', 'actions/configure-pages@v6', 'actions/upload-pages-artifact@v5', 'actions/deploy-pages@v5']) expect(wf).toContain(`uses: ${a}\n`);
+    for (const a of ['checkout@v4', 'setup-node@v4', 'cache@v4', 'configure-pages@v5', 'upload-pages-artifact@v3', 'deploy-pages@v4']) expect(wf).not.toContain(a);
+    // upload-pages-artifact >= v4 drops dot files unless asked: the artifact keeps .nojekyll (= the local build, S.13)
+    expect(wf).toMatch(/upload-pages-artifact@v5\n\s+with:\n\s+path: .*\n\s+include-hidden-files: true\n/);
     expect(cli(['init', dir, '--json']).json).toMatchObject({ ok: false, reason: 'exists' });
     expect(cli(['init', dir, '--github', '--json']).json).toMatchObject({ ok: true, written: [] });
     writeFileSync(join(dir, '.github', 'workflows', 'orz-site.yml'), `${wf}# my own step\n`);

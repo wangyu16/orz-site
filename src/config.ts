@@ -63,9 +63,9 @@ export interface ConfigResult { config: SiteConfig | null; findings: Finding[] }
 /**
  * Validate a parsed `orz-site.json` (any JSON value) and fill in the
  * defaults. Every problem is a finding with the key named; the config is
- * null when any is an error. A non-family `naming` that is valid is still
- * refused in 0.1 (`naming-needs-kit`, §4.2 option C): it needs the kit's
- * `twinLinks` option (K1), which ships later.
+ * null when any is an error. A valid non-family `naming` is accepted here;
+ * the build refuses it (`naming-unsupported`) when a pinned carrier does not
+ * carry it into its files (the kit's `twinLinks`, carriers 1.1).
  */
 export function validateConfig(raw: unknown, file = CONFIG_FILE): ConfigResult {
   const findings: Finding[] = [];
@@ -139,15 +139,7 @@ export function validateConfig(raw: unknown, file = CONFIG_FILE): ConfigResult {
         const p = typeof t !== 'string' ? 'must be a string' : templateProblem(t);
         if (p) { bad(`naming.${k}`, `${JSON.stringify(t)} ${p}`); valid = false; } else n[k] = t as string;
       }
-      if (valid) {
-        c.naming = n;
-        findings.push({
-          code: 'naming-needs-kit',
-          message: `naming: a non-family naming (${JSON.stringify(n)}) needs the kit's twinLinks option (K1, spec §13), which ships with carriers 1.1; orz-site ${VERSION} builds with "naming": "family" only (FC-18 twins: x.md → x.md.html)`,
-          path: file,
-          target: 'naming',
-        });
-      }
+      if (valid) c.naming = n;
     }
   }
   if ('baseUrl' in raw) {

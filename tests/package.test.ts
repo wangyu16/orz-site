@@ -22,7 +22,7 @@ function graph(entry: string, seen = new Set<string>()): Set<string> {
 describe('the package', () => {
   it('the main entry\'s import graph uses no Node built-in, no process, no clock, no randomness', () => {
     const files = [...graph(join(ROOT, 'src', 'index.ts'))];
-    expect(files.map((f) => f.slice(ROOT.length + 1)).sort()).toEqual(['src/build.ts', 'src/config.ts', 'src/glob.ts', 'src/includes.ts', 'src/index-page.ts', 'src/index.ts', 'src/links.ts', 'src/paths.ts', 'src/types.ts', 'src/util.ts', 'src/version.ts', 'src/workflow.ts']);
+    expect(files.map((f) => f.slice(ROOT.length + 1)).sort()).toEqual(['src/build.ts', 'src/config.ts', 'src/glob.ts', 'src/includes.ts', 'src/index-page.ts', 'src/index.ts', 'src/paths.ts', 'src/types.ts', 'src/util.ts', 'src/version.ts', 'src/workflow.ts']);
     for (const f of files) {
       const src = readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
       expect(src, f).not.toMatch(/from\s+'node:|require\(|\bprocess\.|Date\.now|new Date\(|Math\.random|localeCompare|toLocale/);

@@ -53,10 +53,10 @@
     "test:release": "tsx scripts/test-release.ts"
   },
   "peerDependencies": {
-    "orz-markdown": "^2.4.0",
+    "orz-markdown": "^2.5.0",
     "orz-mdhtml": "^1.0.2",
-    "orz-slides": "^1.0.0",
-    "orz-paged": "^1.0.0"
+    "orz-paged": "^1.0.0",
+    "orz-slides": "^1.0.0"
   },
   "peerDependenciesMeta": {
     "orz-mdhtml": {
@@ -71,10 +71,14 @@
   },
   "devDependencies": {
     "@types/node": "22.20.5",
-    "orz-markdown": "2.4.0",
+    "esbuild": "0.28.2",
+    "orz-markdown": "2.5.0",
     "orz-mdhtml": "1.0.2",
+    "orz-mdhtml-browser": "1.0.2",
     "orz-paged": "1.0.0",
+    "orz-paged-browser": "1.0.0",
     "orz-slides": "1.0.0",
+    "orz-slides-browser": "1.0.0",
     "playwright-core": "1.64.0",
     "tsx": "4.22.4",
     "typescript": "5.9.3",

@@ -20,7 +20,7 @@ export function fixtureCopy(): string {
   return dir;
 }
 
-const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.md': 'text/markdown; charset=utf-8', '.svg': 'image/svg+xml', '.csv': 'text/csv; charset=utf-8', '.json': 'application/json', '.xml': 'application/xml', '.png': 'image/png', '.js': 'text/javascript' };
+const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.md': 'text/markdown; charset=utf-8', '.svg': 'image/svg+xml', '.csv': 'text/csv; charset=utf-8', '.json': 'application/json', '.xml': 'application/xml', '.png': 'image/png', '.js': 'text/javascript', '.mjs': 'text/javascript' };
 
 /** Serve a folder under a path prefix (`/bio101/`), as GitHub Pages does. */
 export async function serveFolder(dir: string, prefix = '/'): Promise<{ url: string; origin: string; close(): Promise<void>; requests: string[] }> {
@@ -68,10 +68,10 @@ import { loadCarriers, readSiteFolder } from '../src/node.js';
 import type { BuildEnv } from '../src/types.js';
 
 let loaded: Awaited<ReturnType<typeof loadCarriers>> | null = null;
-/** The installed carriers and the kit's includeTargets (cached). */
+/** The installed carriers (cached). */
 export async function env(extra: BuildEnv = {}): Promise<BuildEnv> {
   loaded ??= await loadCarriers();
-  return { carriers: loaded.carriers, includeTargets: loaded.includeTargets, ...extra };
+  return { carriers: loaded.carriers, ...extra };
 }
 
 /** A folder's file map and parsed config. */
@@ -87,8 +87,19 @@ export const mapOf = (o: Record<string, string | Uint8Array>): Map<string, Uint8
 /** A format-1 text with a header. */
 export const text = (title: string, body: string, extra = ''): string => `{{nyml\nkind: document\ntitle: ${title}\n${extra}}}\n\n${body}\n`;
 
-/** The pins of the installed carriers. */
-export const PINS = { md: '1.0.2', slides: '1.0.0', paged: '1.0.0' } as const;
+/** The pins of the installed carriers: this package's exact devDependencies (the fixture's orz-site.json names the same, config.test.ts). */
+const DEV = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { devDependencies: Record<string, string> }).devDependencies;
+export const PINS = { md: DEV['orz-mdhtml'] as string, slides: DEV['orz-slides'] as string, paged: DEV['orz-paged'] as string } as const;
+
+/**
+ * Whether the pinned carriers carry a non-family link naming into their files
+ * (the kit's `twinLinks`, K1: carriers 1.1.0 and later). Before the carriers
+ * are pinned to 1.1 the naming tests check the refusal (`naming-unsupported`);
+ * after, the naming itself (S.14, S.15).
+ */
+export const K1 = Object.values(PINS).every((v) => { const [a, b] = v.split('.').map(Number); return (a as number) > 1 || (a === 1 && (b as number) >= 1); });
+/** The non-family naming of the naming tests (spec S.14). */
+export const NAMING = { md: '{stem}.html' } as const;
 /** A small config. */
 export const cfg = (o: Record<string, unknown> = {}): Record<string, unknown> => ({ format: 1, carriers: { ...PINS }, sitemap: 'baseUrl' in o, ...o });
 

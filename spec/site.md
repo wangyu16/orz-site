@@ -2,9 +2,11 @@
 
 **Status:** approved 2026-10-21 (owner: Q1–Q10 as recommended, FD-08
 "Design decided"); contract FC-20 is a draft until 1.0. Implemented by
-orz-site 0.1 (REBUILD §3 Phase 4 step 9) with family naming only (§4.2 C:
-a non-family `naming` is refused with `naming-needs-kit` until K1) and in
-Node only (K2); claims in [notes/CLAIMS.md](../notes/CLAIMS.md).
+orz-site 0.1 (REBUILD §3 Phase 4 step 9) on kit 2.5.0 (K1, K2): the
+kit's browser-safe `includeTargets`/`linkTargets` (Node = browser, S.2), and
+a non-family `naming` through the kit's `twinLinks` (§4.2 option A), refused
+as `naming-unsupported` when a pinned carrier predates 1.1 (§3.5); claims in
+[notes/CLAIMS.md](../notes/CLAIMS.md).
 Decisions it rests on: FD-05, FD-07, FD-08 (family `docs/DECISIONS.md`);
 contracts it uses: FC-07, FC-08, FC-18, FC-19 (family `docs/CONTRACTS.md`).
 Open owner decisions: [DESIGN-QUESTIONS.md](../DESIGN-QUESTIONS.md) (Q1–Q10,
@@ -512,16 +514,16 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.npm
           key: orz-site-${{ hashFiles('orz-site.json') }}
       - id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Install orz-site and the pinned carriers
         run: >
           npm install --prefix "$RUNNER_TEMP/orz" --no-save --no-package-lock
@@ -531,9 +533,10 @@ jobs:
         run: >
           "$RUNNER_TEMP/orz/node_modules/.bin/orz-site" build .
           -o "$RUNNER_TEMP/site" --base-url "${{ steps.pages.outputs.base_url }}/"
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/site
+          include-hidden-files: true
   deploy:
     needs: build
     runs-on: ubuntu-24.04
@@ -542,14 +545,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 ```
 
 - Built files are a Pages artifact only — never committed, never in the
   checkout (`--prefix` and `-o` under `$RUNNER_TEMP`).
 - Pins: orz-site and each carrier at exact versions; Node at the major
   (output does not depend on the Node patch, S.2); actions at major tags
-  **[Q4 covers whether actions are pinned by commit SHA]**. A shell update
+  **[Q4 covers whether actions are pinned by commit SHA]** — the majors
+  current on 2026-10-24, all on GitHub's Node 24 runtime (STATUS D-122; S.13
+  ran with the older Node 20 majors). `upload-pages-artifact` ≥ v4 leaves
+  dot files out by default; `include-hidden-files: true` keeps `.nojekyll`,
+  so the artifact still equals a local build. A shell update
   is "edit the pin in `orz-site.json`, run `orz-site init --github
   --update`" — one commit.
 - `configure-pages`' `base_url` has no trailing `/` (verified, S.13, 2026-10-23: the build with `${base_url}/` equals a local build with one `/`),

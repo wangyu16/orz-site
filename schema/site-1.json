@@ -22,7 +22,7 @@
     "delivery": { "enum": ["cdn", "inline"], "default": "cdn", "description": "Delivery of every page's engine: cdn (from jsDelivr; the right choice for sites, FD-07) or inline (embedded)." },
     "inline": { "$ref": "#/$defs/globs", "default": [], "description": "Documents assembled inline anyway (e.g. a handout meant to be downloaded and used offline)." },
     "naming": {
-      "description": "Output names. \"family\" = FC-18's twins (x.md → x.md.html, x.slides.md → x.slides.html, x.paged.md → x.paged.html). Per-kind templates ({ \"md\": \"{stem}.html\" }) are valid here but refused by orz-site 0.1 (naming-needs-kit): they need the kit's twinLinks option (K1).",
+      "description": "Output names. \"family\" = FC-18's twins (x.md → x.md.html, x.slides.md → x.slides.html, x.paged.md → x.paged.html). Per-kind templates ({ \"md\": \"{stem}.html\" }; a kind left out keeps the family name) need carriers 1.1.0 or later, which carry the naming into each page (the kit's twinLinks); with older pins the build is refused (naming-unsupported).",
       "default": "family",
       "oneOf": [
         { "const": "family" },

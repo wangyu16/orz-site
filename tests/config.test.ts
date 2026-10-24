@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig, parseConfig, templateProblem, validateConfig } from '../src/config.js';
 import { globRegExp, matchesAny } from '../src/glob.js';
 import { encodePath, relativeFrom, resolveIn, sitePathProblem } from '../src/paths.js';
-import { ROOT } from './helpers.js';
+import { PINS, ROOT } from './helpers.js';
 
 const codes = (raw: unknown): string[] => validateConfig(raw).findings.map((f) => f.code);
 
@@ -23,7 +23,7 @@ describe('[S.11] config validation', () => {
   it('the fixture config is valid', () => {
     const r = parseConfig(readFileSync(join(ROOT, 'fixtures', 'course', 'orz-site.json')));
     expect(r.findings).toEqual([]);
-    expect(r.config?.carriers).toEqual({ md: '1.0.2', slides: '1.0.0', paged: '1.0.0' });
+    expect(r.config?.carriers).toEqual(PINS); // = package.json's exact devDependencies
   });
 
   it('unknown keys are errors at every level (a misspelt exclude must not publish drafts)', () => {
@@ -55,11 +55,10 @@ describe('[S.11] config validation', () => {
     expect(codes([])).toEqual(['bad-config']);
   });
 
-  it('0.1: a valid non-family naming is refused with naming-needs-kit (K1); an invalid one is bad-config', () => {
+  it('a valid non-family naming is accepted (the build checks the carriers carry it); an invalid one is bad-config', () => {
     const r = validateConfig({ format: 1, naming: { md: '{stem}.html' } });
-    expect(r.findings.map((f) => f.code)).toEqual(['naming-needs-kit']);
-    expect(r.findings[0]?.message).toMatch(/twinLinks.*K1/);
-    expect(r.config).toBeNull();
+    expect(r.findings).toEqual([]);
+    expect(r.config?.naming).toEqual({ md: '{stem}.html' });
     expect(codes({ format: 1, naming: { md: '{stem}{stem}.html' } })).toEqual(['bad-config']);
     expect(codes({ format: 1, naming: { md: 'x/{stem}.html' } })).toEqual(['bad-config']);
     expect(codes({ format: 1, naming: { md: '{stem}.htm' } })).toEqual(['bad-config']);

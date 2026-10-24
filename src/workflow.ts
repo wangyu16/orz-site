@@ -1,7 +1,11 @@
 /**
  * Route A (spec §8): the GitHub Actions + Pages workflow `orz-site init
  * --github` writes, and the drift check `orz-site check` runs on it. Pure
- * text work. Actions are pinned by major tag (owner decision Q4).
+ * text work. Actions are pinned by major tag (owner decision Q4): the
+ * majors current on 2026-10-24, all on GitHub's Node 24 runtime (STATUS
+ * D-122). `upload-pages-artifact` ≥ v4 leaves dot files out unless
+ * `include-hidden-files` is set; it is, so the artifact keeps `.nojekyll`
+ * and equals a local build (S.13).
  */
 import { KINDS, type Kind } from './types.js';
 
@@ -29,16 +33,16 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.npm
           key: orz-site-\${{ hashFiles('orz-site.json') }}
       - id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Install orz-site and the pinned carriers
         run: >
           npm install --prefix "$RUNNER_TEMP/orz" --no-save --no-package-lock
@@ -48,9 +52,10 @@ jobs:
         run: >
           "$RUNNER_TEMP/orz/node_modules/.bin/orz-site" build .
           -o "$RUNNER_TEMP/site" --base-url "\${{ steps.pages.outputs.base_url }}/"
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: \${{ runner.temp }}/site
+          include-hidden-files: true
   deploy:
     needs: build
     runs-on: ubuntu-24.04
@@ -59,7 +64,7 @@ jobs:
       url: \${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 `;
 }
 

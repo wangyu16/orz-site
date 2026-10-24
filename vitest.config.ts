@@ -8,7 +8,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
  * installed; such a run does not verify the claims marked "Chrome" in
  * notes/CLAIMS.md.
  */
-const CHROME = ['tests/chrome.test.ts', 'tests/verify.test.ts'];
+const CHROME = ['tests/chrome.test.ts', 'tests/verify.test.ts', 'tests/browser.test.ts'];
 
 export default defineConfig({
   test: {

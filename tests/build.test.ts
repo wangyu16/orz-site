@@ -10,10 +10,10 @@ import { join } from 'node:path';
 import { extract, storedText, twinHref } from 'orz-markdown/carrier';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildSite } from '../src/build.js';
-import { linkTargets } from '../src/links.js';
+import { linkTargets } from 'orz-markdown/carrier';
 import { dirOf, resolveIn } from '../src/paths.js';
 import type { BuildEnv, BuildResult, CarrierModule, Kind } from '../src/types.js';
-import { cfg, dec, env, FIXTURE, mapOf, PINS, readFolder, ROOT, text } from './helpers.js';
+import { cfg, dec, env, FIXTURE, K1, mapOf, NAMING, PINS, readFolder, ROOT, text } from './helpers.js';
 
 const digest = (r: BuildResult): string => {
   const h = createHash('sha256');
@@ -226,17 +226,75 @@ describe('[S.6] pins', () => {
   it('a used kind without a carrier is no-carrier; without a pin: a warning in build, an error in check', async () => {
     const e = await env();
     const r = await buildSite(mapOf({ 'a.slides.md': text('A', '<!-- slide -->\n## A') }), cfg(), { ...e, carriers: { md: e.carriers?.md as CarrierModule } });
-    expect(r.report.errors.map((x) => [x.code, x.next])).toEqual([['no-carrier', { tool: 'npm', command: 'install', args: ['orz-slides@1.0.0'] }]]);
+    expect(r.report.errors.map((x) => [x.code, x.next])).toEqual([['no-carrier', { tool: 'npm', command: 'install', args: [`orz-slides@${PINS.slides}`] }]]);
     const b = await buildSite(mapOf({ 'a.md': text('A', '# A') }), { format: 1 }, e);
     expect(b.report.warnings.map((x) => x.code)).toContain('no-pin');
     const c = await buildSite(mapOf({ 'a.md': text('A', '# A') }), { format: 1 }, { ...e, check: true });
     expect(c.report.errors.map((x) => x.code)).toEqual(['no-pin']);
   });
-  it('0.1 refuses a non-family naming (naming-needs-kit) before anything is built', async () => {
-    const r = await buildSite(mapOf({ 'a.md': text('A', '# A') }), cfg({ naming: { md: '{stem}.html' } }), await env());
-    expect(r.report.errors.map((x) => x.code)).toEqual(['naming-needs-kit']);
+  it('[S.14, family-naming half] the family naming spelt out is the family naming: byte-identical to the default build', async () => {
+    const spelt = await buildSite(fixture.files, { ...(fixture.config as Record<string, unknown>), naming: { md: '{stem}.md.html' } }, await env());
+    for (const [p, b] of built.files) if (p !== 'orz-site-manifest.json') expect(Buffer.compare(Buffer.from(spelt.files.get(p) ?? new Uint8Array()), Buffer.from(b)), p).toBe(0);
+  });
+  it.skipIf(K1)('a non-family naming with carriers that do not carry it (before 1.1) is naming-unsupported, nothing built', async () => {
+    const r = await buildSite(mapOf({ 'a.md': text('A', '# A [b](b.slides.md)'), 'b.slides.md': text('B', '<!-- slide -->\n## B') }), cfg({ naming: NAMING }), await env());
+    expect(r.report.errors.map((x) => [x.code, x.target])).toEqual([['naming-unsupported', 'carriers.md'], ['naming-unsupported', 'carriers.slides']]);
+    expect(r.report.errors[0]?.message).toContain(`orz-mdhtml ${PINS.md} does not carry a naming`);
     expect(r.files.size).toBe(0);
   });
+});
+
+describe.skipIf(!K1)('[S.14, naming half] a non-family naming (carriers with the kit\'s twinLinks)', () => {
+  let named: BuildResult;
+  let config: Record<string, unknown>;
+  beforeAll(async () => {
+    config = { ...(fixture.config as Record<string, unknown>), naming: NAMING };
+    named = await buildSite(fixture.files, config, await env());
+    if (!named.ok) throw new Error(JSON.stringify(named.report.errors, null, 2));
+  });
+
+  it('pages take the naming\'s names (md: {stem}.html; the deck and the handout keep the family\'s), the home page is index.html, no generated index', () => {
+    expect(named.report.errors).toEqual([]);
+    const outputs = Object.fromEntries(named.manifest.documents.map((d) => [d.path, d.output]));
+    expect(outputs).toEqual({
+      '404.md': '404.html', 'handouts/lab-safety.paged.md': 'handouts/lab-safety.paged.html', 'index.md': 'index.html',
+      'lessons/01-cells.md': 'lessons/01-cells.html', 'lessons/02-membranes.md': 'lessons/02-membranes.html', 'lessons/03-energy.md': 'lessons/03-energy.html',
+      'slides/week1.slides.md': 'slides/week1.slides.html',
+    });
+    expect(named.manifest.generated.map((g) => g.path)).not.toContain('index.html');
+    expect([...named.files.keys()].filter((p) => p.endsWith('.md.html'))).toEqual([]);
+    expect(named.manifest.naming).toEqual(NAMING);
+  });
+
+  it('every page carries the naming and equals the carrier\'s own assemble(text, { delivery, includes, twinLinks })', async () => {
+    const e = await env();
+    for (const d of named.manifest.documents) {
+      const page = dec(named.files.get(d.output));
+      const x = (e.carriers?.[d.kind] as CarrierModule).extract(page);
+      expect(x?.twinLinks, d.path).toEqual(NAMING);
+      const again = await (e.carriers?.[d.kind] as CarrierModule).assemble(dec(fixture.files.get(d.path)), { delivery: d.delivery, ...(x?.includes ? { includes: x.includes } : {}), twinLinks: NAMING });
+      expect(again === page, d.path).toBe(true);
+      expect(x?.text).toBe(storedText(dec(fixture.files.get(d.path))));
+    }
+  });
+
+  it('every link the check accepts, twinHref(href, naming) against the page, names a file of the output', () => {
+    let checked = 0;
+    for (const d of named.manifest.documents) {
+      const t = dec(fixture.files.get(d.path));
+      const record = extract(dec(named.files.get(d.output)))?.includes ?? {};
+      const all = [...linkTargets(t), ...Object.entries(record).filter(([k]) => !/^\w+:\/\//.test(k)).flatMap(([, v]) => linkTargets(v))];
+      for (const l of all) {
+        if (l.kind === 'other' || l.raw) continue;
+        const href = l.kind === 'twin' ? twinHref(l.href, NAMING) : l.href;
+        const target = resolveIn(dirOf(d.output), decodeURIComponent(href.replace(/[?#].*$/, '')));
+        expect(target !== null && named.files.has(target), `${d.path}: ${l.href} → ${target}`).toBe(true);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(15);
+  });
+
 });
 
 describe('[S.7] collisions are refused, every party named, nothing written', () => {

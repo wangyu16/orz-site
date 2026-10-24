@@ -76,9 +76,11 @@ export interface Extracted {
   shell: string;
   delivery: string;
   includes?: Record<string, string>;
+  /** The link naming the file carries (kit 2.5.0 `twinLinks`; absent: the family's). */
+  twinLinks?: { md?: string; slides?: string; paged?: string } | null;
 }
 
-/** One link of a text as the renderer sees it (K2's `linkTargets`, §13). */
+/** One link of a text as the renderer sees it (the kit's `linkTargets`, orz-markdown ≥ 2.5.0; spec §13 K2). */
 export interface LinkRef {
   href: string;
   /** 1-based line in the text. */
@@ -123,9 +125,9 @@ export interface BuildEnv {
   /** Incremental build (§6.1): the previous manifest and output. */
   previous?: { manifest: Manifest; files: SiteFiles };
   /**
-   * The include targets of a text (the kit's `includeTargets`), used when a
-   * carrier module has no `includeTargets` (before K2). The Node adapter
-   * passes `orz-markdown/carrier/node`'s.
+   * The include targets of a text, used when a carrier module has no
+   * `includeTargets` (carriers before 1.1). Default: the kit's
+   * `includeTargets` (`orz-markdown/carrier`, browser-safe since 2.5.0).
    */
   includeTargets?(text: string): string[];
   /** Findings of the host (e.g. the Node adapter's folder read), merged into the report. */

@@ -77,10 +77,9 @@ export function readSiteFolder(dir: string, o: { out?: string } = {}): FolderRea
   return { files, errors, warnings, outDir };
 }
 
-/** The installed carriers and the kit's `includeTargets` (Node only before K2). */
+/** The installed carriers. */
 export interface LoadedCarriers {
   carriers: Partial<Record<Kind, CarrierModule>>;
-  includeTargets: (text: string) => string[];
 }
 
 /** Adapt a carrier package's Node library to {@link CarrierModule}. */
@@ -100,9 +99,9 @@ export function carrierModule(kind: Kind, m: Record<string, unknown>): CarrierMo
 /**
  * Import the installed `orz-mdhtml`, `orz-slides`, `orz-paged` (those that are
  * installed; the core refuses a used kind without one, and a version other
- * than the pin — `shell-mismatch`). TODO(K2): `includeTargets` from each
- * carrier's own kit once K2 makes it browser-safe; until then the kit's Node
- * entry (`orz-markdown/carrier/node`).
+ * than the pin — `shell-mismatch`). A carrier that re-exports the kit's
+ * `includeTargets`/`linkTargets` (1.1) is read with them; otherwise the core
+ * uses its own kit's (browser-safe since orz-markdown 2.5.0).
  */
 export async function loadCarriers(): Promise<LoadedCarriers> {
   const carriers: Partial<Record<Kind, CarrierModule>> = {};
@@ -114,8 +113,7 @@ export async function loadCarriers(): Promise<LoadedCarriers> {
       if (code !== 'ERR_MODULE_NOT_FOUND' && code !== 'MODULE_NOT_FOUND') throw e;
     }
   }
-  const kitNode = (await import('orz-markdown/carrier/node')) as { includeTargets: (text: string) => string[] };
-  return { carriers, includeTargets: (t) => kitNode.includeTargets(t) };
+  return { carriers };
 }
 
 /** The installed version of each carrier (for `init`). */
@@ -217,7 +215,7 @@ export async function buildFolder(dir: string, o: FolderOptions = {}): Promise<F
   const cfg = readConfig(dir);
   if (cfg.problem) return { result: refusedResult([cfg.problem]), config: null, outDir: null };
   const read = readSiteFolder(dir, o.out ? { out: o.out } : {});
-  const loaded = o.carriers ? { carriers: o.carriers, includeTargets: (await loadCarriers()).includeTargets } : await loadCarriers();
+  const loaded = o.carriers ? { carriers: o.carriers } : await loadCarriers();
   let previous: BuildEnv['previous'];
   if (o.incremental && o.out && existsSync(join(o.out, MANIFEST_FILE))) {
     try {
@@ -241,7 +239,6 @@ export async function buildFolder(dir: string, o: FolderOptions = {}): Promise<F
   }
   const env: BuildEnv = {
     carriers: loaded.carriers,
-    includeTargets: loaded.includeTargets,
     offline: o.offline === true,
     findings: { errors: [...read.errors, ...extra], warnings: read.warnings },
     outDir: read.outDir,

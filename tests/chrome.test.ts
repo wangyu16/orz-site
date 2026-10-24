@@ -11,7 +11,7 @@ import type { Browser } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildSite } from '../src/build.js';
 import { writeSite } from '../src/node.js';
-import { chromium, env, FIXTURE, haveChrome, mapOf, readFolder, ROOT, serveFolder, tempDir, text } from './helpers.js';
+import { chromium, env, FIXTURE, haveChrome, K1, mapOf, NAMING, PINS, readFolder, ROOT, serveFolder, tempDir, text } from './helpers.js';
 
 const CHROME = await haveChrome();
 const SHOTS = join(ROOT, '.scratch', 'screenshots');
@@ -76,6 +76,34 @@ describe.skipIf(!CHROME)('the course fixture in Chrome', () => {
   }, 180_000);
 });
 
+describe.skipIf(!CHROME || !K1)('[S.14, naming half] a site built with { md: "{stem}.html" } in Chrome', () => {
+  it('every rendered same-site link of every page names a file of the output (the page renders with the naming it carries)', async () => {
+    const { files, config } = readFolder(FIXTURE);
+    const { r, server } = await serveBuilt(files, { ...(config as Record<string, unknown>), naming: NAMING });
+    const page = await browser.newPage({ viewport: { width: 1100, height: 850 } });
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    let links = 0;
+    try {
+      for (const p of r.manifest.documents.map((d) => d.output)) {
+        await page.goto(server.url + p, { waitUntil: 'networkidle' });
+        for (const href of await renderedLinks(page)) {
+          const path = decodeURIComponent(new URL(href).pathname.slice('/bio101/'.length));
+          expect(path.endsWith('.md.html'), `${p}: ${href} is a family name`).toBe(false);
+          expect(r.files.has(path) || r.files.has(`${path}index.html`), `${p}: ${href}`).toBe(true);
+          links++;
+        }
+      }
+      await page.goto(`${server.url}lessons/01-cells.html`, { waitUntil: 'networkidle' });
+      await page.click('a:has-text("Membranes")');
+      await page.waitForURL(/lessons\/02-membranes\.html$/);
+      await page.waitForSelector('h1:has-text("Membranes")');
+    } finally { await page.close(); await server.close(); }
+    expect(links).toBeGreaterThan(10);
+    expect(errors).toEqual([]);
+  }, 180_000);
+});
+
 describe.skipIf(!CHROME)('[S.12] the index in Chrome', () => {
   it('titles with Markdown, {{, <script> and line breaks appear as text; every index link resolves', async () => {
     const hostile = [
@@ -85,7 +113,7 @@ describe.skipIf(!CHROME)('[S.12] the index in Chrome', () => {
       ['secret.md', 'SECRET TEXT'],
     ] as const;
     const files = mapOf(Object.fromEntries(hostile));
-    const { r, server } = await serveBuilt(files, { format: 1, carriers: { md: '1.0.2', slides: '1.0.0' }, exclude: ['secret.md'], sitemap: false, index: { title: 'Index <script>window.__pwned=3</script> {{md secret.md}}' } });
+    const { r, server } = await serveBuilt(files, { format: 1, carriers: { md: PINS.md, slides: PINS.slides }, exclude: ['secret.md'], sitemap: false, index: { title: 'Index <script>window.__pwned=3</script> {{md secret.md}}' } });
     const page = await browser.newPage();
     try {
       await page.goto(server.url, { waitUntil: 'networkidle' });

@@ -30,7 +30,7 @@ course/                          _site/
 - **Deterministic**: the same texts, config and versions give the same
   bytes — no timestamps, sorted output.
 
-Status: **0.1.0, in development, not published.** Layer: above the carriers
+Status: **0.1.0, the first release.** Layer: above the carriers
 (`orz-mdhtml`, `orz-slides`, `orz-paged`) and the kit (`orz-markdown`); no
 carrier or kit module knows orz-site (family RULES §1). Design:
 [spec/site.md](spec/site.md) (family contract FC-20).
@@ -75,8 +75,8 @@ when it names another program (`{ "tool": "npm", "command": "install",
 "upgrade", "args": ["slides/old.slides.md"] }`). Never `--force`. Findings
 are `{ code, message, path?, line?, target?, next? }`, sorted with the
 site-level ones (the config) first, then by path, line and code. The codes
-are listed in [spec/site.md §7.2](spec/site.md); 0.1 adds `naming-needs-kit`,
-`no-carrier`, `no-pin` and `unreadable`.
+are listed in [spec/site.md §7.2](spec/site.md); 0.1 adds `no-carrier`,
+`no-pin` and `unreadable`.
 
 ## Config: `orz-site.json`
 
@@ -112,7 +112,7 @@ independent of the package version.
 | `carriers` | exact version per kind (`md` → orz-mdhtml, `slides` → orz-slides, `paged` → orz-paged) | `check` requires a pin per kind used |
 | `delivery` | `cdn` (engine from jsDelivr; right for sites) or `inline` | `cdn` |
 | `inline` | globs of documents assembled inline anyway | `[]` |
-| `naming` | `"family"` (`x.md` → `x.md.html`, `x.slides.md` → `x.slides.html`, `x.paged.md` → `x.paged.html`); templates are refused in 0.1, see Limits | `"family"` |
+| `naming` | `"family"` (`x.md` → `x.md.html`, `x.slides.md` → `x.slides.html`, `x.paged.md` → `x.paged.html`), or per-kind templates such as `{ "md": "{stem}.html" }` (`{stem}` once, otherwise only `A-Z a-z 0-9 . _ -`, ending in `.html`, same folder; a kind left out keeps the family name). A template naming needs carriers 1.1.0 or later, which carry it into each page (`twinLinks`), so the rendered links, the editor preview and verify.html agree; older pins are refused (`naming-unsupported`) | `"family"` |
 | `baseUrl` | the site's URL, ending in `/` (sitemap, own-host includes, root-relative warnings) | none |
 | `includes` | `allowedHosts` (https hosts that may be fetched), `network`, `missing` (`error`/`warn`) | `[]`, `true`, `error` |
 | `links.missing` | a link to a text that is not built: `error` or `warn` | `error` |
@@ -168,8 +168,8 @@ import { buildSite } from 'orz-site';                       // the browser-safe 
 import { buildFolder, readSiteFolder, loadCarriers, writeSite, initSite } from 'orz-site/node';
 
 const { files, errors } = readSiteFolder('course');
-const { carriers, includeTargets } = await loadCarriers();
-const result = await buildSite(files, config, { carriers, includeTargets, baseUrl: 'https://owner.github.io/course/' });
+const { carriers } = await loadCarriers();
+const result = await buildSite(files, config, { carriers, baseUrl: 'https://owner.github.io/course/' });
 // → { ok, files: Map<path, bytes>, manifest, report }; a refused build has no files
 if (result.ok) writeSite('_site', result);
 ```
@@ -177,9 +177,13 @@ if (result.ok) writeSite('_site', result);
 `buildSite(files, config, env)` takes a `Map<sitePath, Uint8Array>` and the
 parsed config, and reads nothing else: no clock, no environment, no files.
 `env.carriers` are the carrier modules (`kind`, `version`, `formats`,
-`assemble`, `extract`, `readDocument`); `env.fetch` the transport for network
-includes; `env.previous` a previous manifest and output for an incremental
-build.
+`assemble`, `extract`, `readDocument`; from 1.1 also `includeTargets`,
+`linkTargets`); `env.fetch` the transport for network includes;
+`env.previous` a previous manifest and output for an incremental build. The
+include and link targets come from the kit's parser (`includeTargets`,
+`linkTargets` of `orz-markdown/carrier`, re-exported from the main entry):
+the carrier's own when it has them, else the kit's — browser-safe, so a
+build in the browser reads the same targets as one in Node.
 
 ## Publishing
 
@@ -196,35 +200,19 @@ in `orz-site.json`, run `orz-site init --github --update`, commit;
 code in a browser: the app reads the site's files, imports each pinned
 `orz-<x>-browser` ESM from jsDelivr, calls `buildSite`, and commits
 `result.files` as one commit to a publishing branch (Pages source "Deploy
-from a branch"; `.nojekyll` is always written). In 0.1 this route is not yet
-verified (see Limits).
+from a branch"; `.nojekyll` is always written). Claim S.2: the course
+fixture built this way in Chrome, with the `-browser` ES modules of the
+pinned versions, equals the Node build byte for byte.
 
 ## Limits of 0.1
 
-- **Family naming only.** Pages are named as their twins (`week1.slides.md`
-  → `week1.slides.html`). Other names (`{ "md": "{stem}.html" }`) are
-  validated and then refused with `naming-needs-kit`: the links inside a page
-  are rewritten by the kit when the page renders, so a site's own names must
-  travel in the file — the kit's `twinLinks` option (K1), which ships with
-  orz-markdown and carriers 1.1.
-- **Node only.** The main entry has no Node imports, but before K2 the
-  include targets come from the kit's Node entry (`orz-markdown/carrier/node`,
-  passed in by `orz-site/node`), and the browser build (route B, claim S.2)
-  is not verified.
+- A template `naming` needs every carrier the site uses at 1.1.0 or later
+  (`naming-unsupported` otherwise): a page's links are rewritten by the kit
+  when the page renders, so the site's names must travel in the file (the
+  kit's `twinLinks`, orz-markdown 2.5.0).
 - The 404 page's relative links resolve from the site root only.
-
-## TODO (kit K1, K2)
-
-- [ ] **K1** (kit `twinLinks` naming option, carriers 1.1): accept a
-  non-family `naming`, pass it to `assemble({ twinLinks })`, apply it in the
-  link check, the index and the sitemap; peer ranges `^1.1.0`; claims S.14,
-  S.15 with a non-family naming.
-- [ ] **K2** (kit `includeTargets` browser-safe in `orz-markdown/carrier`,
-  `linkTargets` added, both re-exported by each carrier): replace the local
-  `src/links.ts` `linkTargets` with the kit's (marked `TODO(K2)` there) and
-  the Node-only `includeTargets` in `src/node.ts` `loadCarriers` with each
-  carrier's; then claim S.2 (Node = browser) in Chrome with the `-browser`
-  ESM.
+- Route B (an app that builds in the browser and commits) is the core's job
+  only up to `result.files`: committing is the app's.
 
 ## Development
 
