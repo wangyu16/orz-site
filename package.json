@@ -54,9 +54,9 @@
   },
   "peerDependencies": {
     "orz-markdown": "^2.5.0",
-    "orz-mdhtml": "^1.0.2",
-    "orz-paged": "^1.0.0",
-    "orz-slides": "^1.0.0"
+    "orz-mdhtml": "^1.1.0",
+    "orz-paged": "^1.1.0",
+    "orz-slides": "^1.1.0"
   },
   "peerDependenciesMeta": {
     "orz-mdhtml": {
@@ -73,12 +73,12 @@
     "@types/node": "22.20.5",
     "esbuild": "0.28.2",
     "orz-markdown": "2.5.0",
-    "orz-mdhtml": "1.0.2",
-    "orz-mdhtml-browser": "1.0.2",
-    "orz-paged": "1.0.0",
-    "orz-paged-browser": "1.0.0",
-    "orz-slides": "1.0.0",
-    "orz-slides-browser": "1.0.0",
+    "orz-mdhtml": "1.1.0",
+    "orz-mdhtml-browser": "1.1.0",
+    "orz-paged": "1.1.0",
+    "orz-paged-browser": "1.1.0",
+    "orz-slides": "1.1.0",
+    "orz-slides-browser": "1.1.0",
     "playwright-core": "1.64.0",
     "tsx": "4.22.4",
     "typescript": "5.9.3",

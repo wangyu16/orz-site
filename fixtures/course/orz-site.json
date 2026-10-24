@@ -1,7 +1,7 @@
 {
   "$schema": "https://cdn.jsdelivr.net/npm/orz-site@0.1/schema/site-1.json",
   "format": 1,
-  "carriers": { "md": "1.0.2", "slides": "1.0.0", "paged": "1.0.0" },
+  "carriers": { "md": "1.1.0", "slides": "1.1.0", "paged": "1.1.0" },
   "delivery": "cdn",
   "inline": ["handouts/**"],
   "naming": "family",

@@ -7,7 +7,7 @@ All notable changes to **orz-site** are recorded here. Versions follow
 ## [0.1.0] — 2026-10-24
 
 First version (family REBUILD Phase 4 step 9; design: `spec/site.md`, FC-20).
-Needs orz-markdown ≥ 2.5.0 (peer).
+Needs orz-markdown ≥ 2.5.0 and carriers ≥ 1.1.0 (peers).
 
 - `buildSite(files, config, env)` — the pure, browser-safe core: documents by
   file name, assets byte for byte, always-excluded paths, includes resolved at
