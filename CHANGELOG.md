@@ -4,6 +4,16 @@ All notable changes to **orz-site** are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/). The config format (`format` in
 `orz-site.json`) and the manifest format are versioned on their own.
 
+## [Unreleased]
+
+- **`readerCopy`** in `orz-site.json` (config format 1, additive; FC-18 §8.2,
+  orz-markdown 2.9.0; owner decision 2026-11-17): `true` or `{ "notice":
+  "…" }` makes every page (and the index) a reader copy — opened from the
+  site, its editor says edits can't be saved to the website and its Save
+  reads "Download a copy". Read back with the carrier's `extract`; a pinned
+  carrier that does not carry it is refused (`reader-copy-unsupported`,
+  carriers before 1.3.0). Default `false`: the build is as before.
+
 ## [0.1.0] — 2026-10-24
 
 First version (family REBUILD Phase 4 step 9; design: `spec/site.md`, FC-20).

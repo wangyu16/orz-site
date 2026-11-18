@@ -297,6 +297,59 @@ describe.skipIf(!K1)('[S.14, naming half] a non-family naming (carriers with the
 
 });
 
+describe('[S.16] readerCopy: pages published for readers', () => {
+  /** The pinned carriers, given readerCopy as a 1.3 carrier gives it to the kit (#orz-shell "readerCopy"): orz-site's side, whatever the pins. */
+  const readerCarriers = async (seen: unknown[]): Promise<BuildEnv> => {
+    const e = await env();
+    const wrap = (c: CarrierModule): CarrierModule => ({
+      ...c,
+      assemble: async (t, o) => {
+        seen.push(o.readerCopy);
+        const { readerCopy, ...rest } = o;
+        const html = await c.assemble(t, rest);
+        if (!readerCopy) return html;
+        return html.replace(/(<script type="application\/json" id="orz-shell">\{[^<]*)\}<\/script>/, (_m, head: string) => `${head},"readerCopy":${JSON.stringify(readerCopy === true ? {} : readerCopy)}}</script>`);
+      },
+      extract: (html) => {
+        const x = c.extract(html);
+        const shell = /<script type="application\/json" id="orz-shell">([^<]*)<\/script>/.exec(html)?.[1];
+        const rc = shell ? (JSON.parse(shell) as { readerCopy?: { notice?: string } }).readerCopy : undefined;
+        return x ? { ...x, ...(rc ? { readerCopy: rc } : {}) } : x;
+      },
+    });
+    return { ...e, carriers: Object.fromEntries(Object.entries(e.carriers ?? {}).map(([k, c]) => [k, wrap(c as CarrierModule)])) as BuildEnv['carriers'] };
+  };
+  const files = () => mapOf({ 'a.md': text('A', '# A [b](b.slides.md)'), 'b.slides.md': text('B', '<!-- slide -->\n## B') });
+
+  it('with readerCopy every page and the index is assembled with it (true, or the site\'s notice) and carries it (the carrier\'s extract); without it the build is as before and passes nothing; it is part of the build keys', async () => {
+    const seen: unknown[] = [];
+    const notice = { notice: 'Your own copy: download it to keep it.' };
+    const r = await buildSite(files(), cfg({ readerCopy: notice }), await readerCarriers(seen));
+    expect(r.report.errors).toEqual([]);
+    expect(seen).toEqual([notice, notice, notice]); // a.md, b.slides.md and the generated index
+    for (const p of ['a.md.html', 'b.slides.html', 'index.html']) expect(dec(r.files.get(p)), p).toContain(`"readerCopy":${JSON.stringify(notice)}`);
+    const t = await buildSite(files(), cfg({ readerCopy: true }), await readerCarriers([]));
+    expect(dec(t.files.get('a.md.html'))).toContain('"readerCopy":{}');
+    const none: unknown[] = [];
+    const plain = await buildSite(files(), cfg(), await readerCarriers(none));
+    expect(none).toEqual([undefined, undefined, undefined]);
+    const direct = await buildSite(files(), cfg(), await env());
+    for (const [p, b] of direct.files) expect(Buffer.compare(Buffer.from(plain.files.get(p) ?? new Uint8Array()), Buffer.from(b)), p).toBe(0);
+    expect(r.manifest.documents.map((d) => d.key)).not.toEqual(plain.manifest.documents.map((d) => d.key));
+    expect(t.manifest.documents.map((d) => d.key)).not.toEqual(r.manifest.documents.map((d) => d.key));
+  });
+
+  it('a pinned carrier that does not carry readerCopy into its files is refused (reader-copy-unsupported, once per kind, naming the pin), nothing built', async () => {
+    const e = await env();
+    const old = Object.fromEntries(Object.entries(e.carriers ?? {}).map(([k, c]) => [k, { ...(c as CarrierModule), assemble: (t: string, o: Parameters<CarrierModule['assemble']>[1]) => { const { readerCopy: _drop, ...rest } = o; return (c as CarrierModule).assemble(t, rest); }, extract: (h: string) => { const x = (c as CarrierModule).extract(h); if (x) delete (x as { readerCopy?: unknown }).readerCopy; return x; } }])) as BuildEnv['carriers'];
+    const r = await buildSite(files(), cfg({ readerCopy: true }), { ...e, carriers: old });
+    expect(r.ok).toBe(false);
+    expect(r.report.errors.map((x) => [x.code, x.target])).toEqual([['reader-copy-unsupported', 'carriers.md'], ['reader-copy-unsupported', 'carriers.slides']]);
+    expect(r.report.errors[0]?.message).toContain(`orz-mdhtml ${PINS.md} does not carry it`);
+    expect(r.files.size).toBe(0);
+  });
+});
+
 describe('[S.7] collisions are refused, every party named, nothing written', () => {
   const cases: Array<[string, Record<string, string>, Record<string, unknown>, string, string[]]> = [
     ['page vs committed assembled file', { 'x.md': text('X', '# X'), 'x.md.html': '<p>old</p>' }, {}, 'name-collision', ['the page of x.md', 'the asset x.md.html']],

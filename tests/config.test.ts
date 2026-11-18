@@ -66,6 +66,19 @@ describe('[S.11] config validation', () => {
     expect(templateProblem('{stem}.page.html')).toBeNull();
   });
 
+  it('[S.16] readerCopy (0.2): false by default; true, false and { notice } are accepted (the notice collapsed and trimmed as the kit stores it; {} is true); an empty, too long or control-character notice, another key or another type is bad-config / unknown-key', () => {
+    expect(validateConfig({ format: 1 }).config?.readerCopy).toBe(false);
+    expect(validateConfig({ format: 1, readerCopy: true }).config?.readerCopy).toBe(true);
+    expect(validateConfig({ format: 1, readerCopy: false }).config?.readerCopy).toBe(false);
+    expect(validateConfig({ format: 1, readerCopy: {} }).config?.readerCopy).toBe(true);
+    expect(validateConfig({ format: 1, readerCopy: { notice: '  Your own\n copy. ' } }).config?.readerCopy).toEqual({ notice: 'Your own copy.' });
+    expect(validateConfig({ format: 1, readerCopy: { notice: 'x'.repeat(300) } }).findings).toEqual([]);
+    for (const bad of [{ notice: '' }, { notice: ' \n ' }, { notice: 'x'.repeat(301) }, { notice: 'a\u0007b' }, { notice: 3 }, 'yes', 1, null, []]) {
+      expect(codes({ format: 1, readerCopy: bad }), JSON.stringify(bad)).toEqual(['bad-config']);
+    }
+    expect(codes({ format: 1, readerCopy: { text: 'x' } })).toEqual(['unknown-key']);
+  });
+
   it('invalid JSON or UTF-8 is bad-config', () => {
     expect(parseConfig(new TextEncoder().encode('{ format: 1 }')).findings[0]?.code).toBe('bad-config');
     expect(parseConfig(new Uint8Array([0xff, 0xfe])).findings[0]?.code).toBe('bad-config');

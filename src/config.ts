@@ -25,6 +25,7 @@ export function defaultConfig(): SiteConfig {
     delivery: 'cdn',
     inline: [],
     naming: 'family',
+    readerCopy: false,
     baseUrl: null,
     includes: { allowedHosts: [], network: true, missing: 'error' },
     links: { missing: 'error' },
@@ -36,7 +37,7 @@ export function defaultConfig(): SiteConfig {
   };
 }
 
-const TOP_KEYS = ['$schema', 'format', 'carriers', 'delivery', 'inline', 'naming', 'baseUrl', 'includes', 'links', 'exclude', 'texts', 'index', 'sitemap', 'notFound'] as const;
+const TOP_KEYS = ['$schema', 'format', 'carriers', 'delivery', 'inline', 'naming', 'readerCopy', 'baseUrl', 'includes', 'links', 'exclude', 'texts', 'index', 'sitemap', 'notFound'] as const;
 const INCLUDE_KEYS = ['allowedHosts', 'network', 'missing'] as const;
 const LINK_KEYS = ['missing'] as const;
 const INDEX_KEYS = ['mode', 'title', 'theme', 'lang'] as const;
@@ -55,6 +56,24 @@ export function templateProblem(t: string): string | null {
   if (!/^[A-Za-z0-9._-]*$/.test(rest)) return 'may hold only {stem} and the characters A-Z a-z 0-9 . _ -';
   if (!t.endsWith('.html')) return 'must end in .html';
   return null;
+}
+
+/** The longest reader-copy notice (the kit's limit, FC-18 §8.2). */
+export const READER_NOTICE_MAX = 300;
+
+/**
+ * `readerCopy.notice` as the kit stores it (runs of spaces and line breaks
+ * collapsed, trimmed), or why it is not valid (§3.2): 1–300 characters, no
+ * other control character.
+ */
+export function readerNotice(v: unknown): { notice: string } | { problem: string } {
+  if (typeof v !== 'string') return { problem: 'must be a string' };
+  const notice = v.replace(/[\t\n\r ]+/g, ' ').trim();
+  if (notice === '') return { problem: 'is empty (leave readerCopy true for the default words)' };
+  if (notice.length > READER_NOTICE_MAX) return { problem: `is longer than ${READER_NOTICE_MAX} characters` };
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(notice)) return { problem: 'holds a control character' };
+  return { notice };
 }
 
 /** The result of {@link validateConfig}. */
@@ -140,6 +159,19 @@ export function validateConfig(raw: unknown, file = CONFIG_FILE): ConfigResult {
         if (p) { bad(`naming.${k}`, `${JSON.stringify(t)} ${p}`); valid = false; } else n[k] = t as string;
       }
       if (valid) c.naming = n;
+    }
+  }
+  if ('readerCopy' in raw) {
+    const v = raw.readerCopy;
+    if (v === true || v === false) c.readerCopy = v;
+    else if (!isObject(v)) bad('readerCopy', 'must be true, false or { "notice": "…" }');
+    else {
+      unknown(v, ['notice'], 'readerCopy.');
+      if (!('notice' in v)) c.readerCopy = true;
+      else {
+        const n = readerNotice(v.notice);
+        if ('problem' in n) bad('readerCopy.notice', n.problem); else c.readerCopy = n;
+      }
     }
   }
   if ('baseUrl' in raw) {

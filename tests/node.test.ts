@@ -30,7 +30,7 @@ function runNext(next: { tool?: string; command: string; args: string[] }, cwd: 
 }
 
 /** Every code the spec lists (§7.2), plus the ones 0.1 adds. */
-const CODES = new Set(['bad-config', 'unknown-key', 'newer-config', 'no-config', 'shell-mismatch', 'naming-unsupported', 'name-collision', 'case-collision', 'not-utf8', 'invalid-text', 'newer-format', 'carrier-mismatch', 'empty-text', 'assembled-input', 'legacy-file', 'missing-link', 'missing-asset', 'raw-twin-link', 'root-relative', 'case-link', 'include-missing', 'include-host', 'include-network', 'include-too-large', 'include-key-clash', 'include-own-output', 'outside-root', 'symlink-out', 'too-large', 'too-many-files', 'no-base-url', 'out-not-site', 'workflow-drift', 'exists', 'write-failed',
+const CODES = new Set(['bad-config', 'unknown-key', 'newer-config', 'no-config', 'shell-mismatch', 'naming-unsupported', 'reader-copy-unsupported', 'name-collision', 'case-collision', 'not-utf8', 'invalid-text', 'newer-format', 'carrier-mismatch', 'empty-text', 'assembled-input', 'legacy-file', 'missing-link', 'missing-asset', 'raw-twin-link', 'root-relative', 'case-link', 'include-missing', 'include-host', 'include-network', 'include-too-large', 'include-key-clash', 'include-own-output', 'outside-root', 'symlink-out', 'too-large', 'too-many-files', 'no-base-url', 'out-not-site', 'workflow-drift', 'exists', 'write-failed',
   /* 0.1 additions */ 'no-carrier', 'no-pin', 'unreadable', 'bad-usage', 'no-such-file', 'refused', 'failed']);
 
 describe('[S.9] confinement', () => {

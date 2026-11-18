@@ -20,6 +20,13 @@ export interface SiteConfig {
   delivery: 'cdn' | 'inline';
   inline: string[];
   naming: Naming;
+  /**
+   * (0.2) Pages published for readers (FC-18 §8.2 `readerCopy`, orz-markdown
+   * 2.9.0): `false` (default) writes nothing; `true` (the kit's words) or
+   * `{ notice }` (the site's words) makes every page's editor say that edits
+   * can't be saved to the website, with Save as "Download a copy".
+   */
+  readerCopy: false | true | { notice: string };
   baseUrl: string | null;
   includes: { allowedHosts: string[]; network: boolean; missing: 'error' | 'warn' };
   links: { missing: 'error' | 'warn' };
@@ -78,6 +85,8 @@ export interface Extracted {
   includes?: Record<string, string>;
   /** The link naming the file carries (kit 2.5.0 `twinLinks`; absent: the family's). */
   twinLinks?: { md?: string; slides?: string; paged?: string } | null;
+  /** (kit 2.9.0) The reader-copy setting the file carries (`#orz-shell` `"readerCopy"`). */
+  readerCopy?: { notice?: string } | null;
 }
 
 /** One link of a text as the renderer sees it (the kit's `linkTargets`, orz-markdown ≥ 2.5.0; spec §13 K2). */
@@ -102,7 +111,7 @@ export interface CarrierModule {
   kind: Kind;
   version: string;
   formats: readonly number[];
-  assemble(text: string, o: { delivery: 'inline' | 'cdn'; includes?: Record<string, string>; twinLinks?: Naming }): string | Promise<string>;
+  assemble(text: string, o: { delivery: 'inline' | 'cdn'; includes?: Record<string, string>; twinLinks?: Naming; readerCopy?: true | { notice: string } }): string | Promise<string>;
   extract(html: string): Extracted | null;
   readDocument(text: string, o?: { filename?: string }): DocumentInfo;
   /** K2: the include targets as the carrier's kit parses them. */

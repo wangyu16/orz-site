@@ -99,7 +99,11 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
   // reaches every page as the kit's `twinLinks` (K1, orz-markdown 2.5.0): the carriers store it in the file
   // and render its links with it (spec §4.2 option A); carriers before 1.1 do not (`naming-unsupported`).
   const naming: TwinNaming | null = cfg.naming === 'family' ? null : twinNaming(cfg.naming);
-  const withNaming = naming ? { twinLinks: naming } : {};
+  // (0.2) Pages published for readers (FC-18 §8.2 `readerCopy`, kit 2.9.0): each page's editor says edits can't be
+  // saved to the website; read back with the carrier's `extract`, refused (`reader-copy-unsupported`) when a pinned
+  // carrier does not carry it into its files.
+  const reader = cfg.readerCopy === false ? null : cfg.readerCopy;
+  const withNaming = { ...(naming ? { twinLinks: naming } : {}), ...(reader ? { readerCopy: reader } : {}) };
 
   // ── the file map ─────────────────────────────────────────────────────────
   const paths = [...files.keys()].sort(byCodeUnits);
@@ -317,7 +321,22 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
   // A non-family naming must reach the file: the carrier's own `extract` reads it back from `#orz-shell`.
   // A carrier before 1.1 ignores `twinLinks`: its page would link to the family names — refused, once per kind.
   const unsupported = new Set<Kind>();
+  const readerUnsupported = new Set<Kind>();
   function carriesNaming(kind: Kind, c: CarrierModule, html: string): boolean {
+    return carriesReader(kind, c, html) && carriesLinks(kind, c, html);
+  }
+  function carriesReader(kind: Kind, c: CarrierModule, html: string): boolean {
+    if (!reader) return true;
+    if (readerUnsupported.has(kind)) return false;
+    let got: unknown;
+    try { got = c.extract(html)?.readerCopy; } catch { got = undefined; }
+    const want = reader === true ? {} : reader;
+    if (got && typeof got === 'object' && JSON.stringify(got) === JSON.stringify(want)) return true;
+    readerUnsupported.add(kind);
+    add({ code: 'reader-copy-unsupported', message: `${CONFIG_FILE} publishes pages for readers ("readerCopy"), but ${PACKAGE[kind]} ${c.version} does not carry it into its files: its pages' editors would not say that edits can't be saved to the website. Pin ${PACKAGE[kind]} 1.3.0 or later in "carriers", or leave "readerCopy" out`, path: CONFIG_FILE, target: `carriers.${kind}` });
+    return false;
+  }
+  function carriesLinks(kind: Kind, c: CarrierModule, html: string): boolean {
     if (!naming) return true;
     if (unsupported.has(kind)) return false;
     let got: unknown;
@@ -332,7 +351,8 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
   const out = new Map<string, Uint8Array>();
   const manifestDocs: ManifestDocument[] = [];
   const previous = env.previous;
-  const namingKey = JSON.stringify(cfg.naming);
+  // the reader-copy setting is part of the key only when set, so a site without it keeps its 0.1 keys
+  const namingKey = cfg.readerCopy === false ? JSON.stringify(cfg.naming) : JSON.stringify([cfg.naming, cfg.readerCopy]);
   for (const d of docs) {
     const r = records.get(d.path) as Awaited<ReturnType<typeof resolveIncludes>>;
     const textSha = await sha256Hex(d.bytes);

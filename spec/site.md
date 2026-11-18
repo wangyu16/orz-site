@@ -5,7 +5,8 @@
 orz-site 0.1 (REBUILD §3 Phase 4 step 9) on kit 2.5.0 (K1, K2): the
 kit's browser-safe `includeTargets`/`linkTargets` (Node = browser, S.2), and
 a non-family `naming` through the kit's `twinLinks` (§4.2 option A), refused
-as `naming-unsupported` when a pinned carrier predates 1.1 (§3.5); claims in
+as `naming-unsupported` when a pinned carrier predates 1.1 (§3.5); 0.2 adds
+`readerCopy` (§3.2; kit 2.9.0, carriers 1.3.0); claims in
 [notes/CLAIMS.md](../notes/CLAIMS.md).
 Decisions it rests on: FD-05, FD-07, FD-08 (family `docs/DECISIONS.md`);
 contracts it uses: FC-07, FC-08, FC-18, FC-19 (family `docs/CONTRACTS.md`).
@@ -152,6 +153,7 @@ it finds installed and warns `no-config`; `check` is red.
   "delivery": "cdn",
   "inline": ["handouts/**"],
   "naming": "family",
+  "readerCopy": false,
   "baseUrl": "https://owner.github.io/course/",
   "includes": { "allowedHosts": [], "network": true, "missing": "error" },
   "links": { "missing": "error" },
@@ -170,6 +172,7 @@ it finds installed and warns `no-config`; `check` is red.
 | `delivery` | `cdn` or `inline` for every document | `cdn` (FD-07) |
 | `inline` | globs of documents assembled `inline` anyway (e.g. a handout meant to be downloaded and used offline) | `[]` |
 | `naming` | output names (§3.3) | `"family"` |
+| `readerCopy` | (0.2) pages published for readers (FC-18 §8.2, kit 2.9.0): `true` — opened from the site, a page's editor says at once that edits can't be saved to the website (the kit's words) and its Save reads "Download a copy" (a downloaded copy is an ordinary file); `{ "notice": "…" }` — the same with the site's own plain words (spaces collapsed, 1–300 characters, no control character). Every page and the index carry it (`assemble(text, { readerCopy })`); the build reads it back with the carrier's `extract` and refuses a pinned carrier that does not carry it (`reader-copy-unsupported`, carriers before 1.3). Part of every page's build key when set | `false` |
 | `baseUrl` | the site's absolute URL, ending in `/`; the CLI's `--base-url` overrides it (route A passes Pages' URL) | none |
 | `includes` | §2.5 | as shown |
 | `links.missing` | `error` or `warn` for a link to a text that is not built (§4) | `error` |
@@ -457,7 +460,7 @@ interface Finding { code: string; message: string; path?: string; line?: number;
 
 Findings sorted by path, line, code. Codes (new ones may be added, none
 renamed): `bad-config`, `unknown-key`, `newer-config`, `no-config`,
-`shell-mismatch`, `naming-unsupported`, `name-collision`,
+`shell-mismatch`, `naming-unsupported`, `reader-copy-unsupported`, `name-collision`,
 `case-collision`, `not-utf8`, `invalid-text`, `newer-format`,
 `carrier-mismatch`, `empty-text`, `assembled-input`, `legacy-file`,
 `missing-link`, `missing-asset`, `raw-twin-link`, `root-relative`,
