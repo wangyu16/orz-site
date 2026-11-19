@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { defaultConfig, parseConfig, templateProblem, validateConfig } from '../src/config.js';
+import { defaultConfig, parseConfig, READER_NOTICE_MAX, templateProblem, validateConfig } from '../src/config.js';
 import { globRegExp, matchesAny } from '../src/glob.js';
 import { encodePath, relativeFrom, resolveIn, sitePathProblem } from '../src/paths.js';
 import { PINS, ROOT } from './helpers.js';
@@ -79,6 +79,15 @@ describe('[S.11] config validation', () => {
     expect(codes({ format: 1, readerCopy: { text: 'x' } })).toEqual(['unknown-key']);
   });
 
+  it('[S.16] (audit LOW-2/LOW-3) a notice is checked as the kit checks it: format characters (bidi overrides, zero-width spaces, soft hyphen), unpaired surrogates and text with nothing visible are bad-config; the zero-width joiner and non-joiner inside text are kept; the length is in UTF-16 code units (150 emoji fit, 151 do not)', () => {
+    for (const notice of ['abc\u202edef', 'a\u200bb', 'soft\u00adhyphen', 'x\ud800', '\u00a0', '\u3000', '\u200d', '\u0301', '😀'.repeat(151)]) {
+      expect(codes({ format: 1, readerCopy: { notice } }), JSON.stringify(notice)).toEqual(['bad-config']);
+    }
+    for (const notice of ['Edits stay yours 👩\u200d💻.', 'می\u200cخواهم', '😀'.repeat(150)]) {
+      expect(validateConfig({ format: 1, readerCopy: { notice } }).config?.readerCopy, notice).toEqual({ notice });
+    }
+  });
+
   it('invalid JSON or UTF-8 is bad-config', () => {
     expect(parseConfig(new TextEncoder().encode('{ format: 1 }')).findings[0]?.code).toBe('bad-config');
     expect(parseConfig(new Uint8Array([0xff, 0xfe])).findings[0]?.code).toBe('bad-config');
@@ -96,6 +105,19 @@ describe('the JSON Schema agrees with the validator', () => {
       expect(Object.keys(schema.properties[k]?.properties ?? {}).sort()).toEqual(Object.keys(defaultConfig()[k]).sort());
     }
     expect(Object.keys(schema.properties['carriers']?.properties ?? {}).sort()).toEqual(['md', 'paged', 'slides']);
+  });
+  it('[S.16] (audit LOW-3) readerCopy.notice: the schema requires a visible character (whitespace-only, invisible-only text fails its pattern) and says the length is counted in UTF-16 code units, as the validator counts it', () => {
+    const notice = (schema.properties['readerCopy'] as unknown as { oneOf: Array<{ properties?: { notice?: { pattern?: string; description?: string; maxLength?: number } } }> }).oneOf[1].properties!.notice!;
+    expect(notice.maxLength).toBe(READER_NOTICE_MAX);
+    expect(notice.description).toMatch(/UTF-16 code units/);
+    // as JSON Schema tools run it: an ECMA-262 regex, unanchored, with or without the u flag
+    for (const flags of ['', 'u']) {
+      const re = new RegExp(notice.pattern!, flags);
+      for (const bad of ['   ', '\u00a0\u3000', '\t\n', '\u200b\u200d', '\ufeff ']) expect(re.test(bad), JSON.stringify(bad)).toBe(false);
+      for (const good of ['x', '  Your own copy.  ', '日本語', '😀']) expect(re.test(good), good).toBe(true);
+    }
+    // never stricter than the validator: what its pattern refuses, the validator refuses too
+    for (const bad of ['   ', '\u00a0\u3000', '\u200b\u200d']) expect(codes({ format: 1, readerCopy: { notice: bad } })).toEqual(['bad-config']);
   });
   it('the schema\'s defaults are the validator\'s', () => {
     const d = defaultConfig() as unknown as Record<string, unknown>;

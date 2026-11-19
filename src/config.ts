@@ -58,21 +58,23 @@ export function templateProblem(t: string): string | null {
   return null;
 }
 
-/** The longest reader-copy notice (the kit's limit, FC-18 §8.2). */
+/** The longest reader-copy notice, in UTF-16 code units (the kit's limit, FC-18 §8.2). */
 export const READER_NOTICE_MAX = 300;
 
 /**
  * `readerCopy.notice` as the kit stores it (runs of spaces and line breaks
- * collapsed, trimmed), or why it is not valid (§3.2): 1–300 characters, no
- * other control character.
+ * collapsed, trimmed), or why it is not valid (§3.2) — the kit's rule
+ * (FC-18 §8.2, orz-markdown 2.9.0): 1–300 UTF-16 code units, at least one
+ * visible character, no control, format (`\p{Cf}`, but the zero-width
+ * joiner and non-joiner) or unpaired surrogate character.
  */
 export function readerNotice(v: unknown): { notice: string } | { problem: string } {
   if (typeof v !== 'string') return { problem: 'must be a string' };
   const notice = v.replace(/[\t\n\r ]+/g, ' ').trim();
   if (notice === '') return { problem: 'is empty (leave readerCopy true for the default words)' };
-  if (notice.length > READER_NOTICE_MAX) return { problem: `is longer than ${READER_NOTICE_MAX} characters` };
-  // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(notice)) return { problem: 'holds a control character' };
+  if (notice.length > READER_NOTICE_MAX) return { problem: `is longer than ${READER_NOTICE_MAX} characters (UTF-16 code units: an emoji counts 2)` };
+  if (/[\p{Cc}\p{Cs}\u2028\u2029]|(?![\u200c\u200d])\p{Cf}/u.test(notice)) return { problem: 'holds a control or format character' };
+  if (!/[^\p{Z}\p{C}\p{M}]/u.test(notice)) return { problem: 'has nothing visible' };
   return { notice };
 }
 
