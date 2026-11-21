@@ -205,8 +205,8 @@ describe('init and route A\'s workflow (spec §8)', () => {
     const r = cli(['init', dir, '--github', '--json']);
     expect(r.json).toMatchObject({ ok: true, command: 'init', written: ['orz-site.json', '.github/workflows/orz-site.yml'], carriers: PINS });
     const wf = readFileSync(join(dir, '.github', 'workflows', 'orz-site.yml'), 'utf8');
-    expect(wf).toBe(workflowText('0.1.0', PINS));
-    expect(wf).toContain(`orz-site@0.1.0 orz-mdhtml@${PINS.md} orz-slides@${PINS.slides} orz-paged@${PINS.paged}`);
+    expect(wf).toBe(workflowText('0.2.0', PINS));
+    expect(wf).toContain(`orz-site@0.2.0 orz-mdhtml@${PINS.md} orz-slides@${PINS.slides} orz-paged@${PINS.paged}`);
     // D-122: the majors current on 2026-10-24, all on GitHub's Node 24 runtime; none of the Node 20 ones
     for (const a of ['actions/checkout@v7', 'actions/setup-node@v7', 'actions/cache@v6', 'actions/configure-pages@v6', 'actions/upload-pages-artifact@v5', 'actions/deploy-pages@v5']) expect(wf).toContain(`uses: ${a}\n`);
     for (const a of ['checkout@v4', 'setup-node@v4', 'cache@v4', 'configure-pages@v5', 'upload-pages-artifact@v3', 'deploy-pages@v4']) expect(wf).not.toContain(a);

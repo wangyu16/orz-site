@@ -30,7 +30,7 @@ course/                          _site/
 - **Deterministic**: the same texts, config and versions give the same
   bytes — no timestamps, sorted output.
 
-Status: **0.1.0, the first release.** Layer: above the carriers
+Status: **0.2.0** (adds `readerCopy`). Layer: above the carriers
 (`orz-mdhtml`, `orz-slides`, `orz-paged`) and the kit (`orz-markdown`); no
 carrier or kit module knows orz-site (family RULES §1). Design:
 [spec/site.md](spec/site.md) (family contract FC-20).
@@ -38,7 +38,7 @@ carrier or kit module knows orz-site (family RULES §1). Design:
 ## Install
 
 ```bash
-npm install --save-dev orz-site orz-mdhtml@1.1.0 orz-slides@1.1.0 orz-paged@1.1.0
+npm install --save-dev orz-site orz-mdhtml@1.3.0 orz-slides@1.3.0 orz-paged@1.3.0
 ```
 
 The carriers (and the kit, `orz-markdown`) are **peer dependencies**: the
@@ -71,7 +71,7 @@ carriers. With `--json`, one object on stdout:
 `reason` is the first error's code; `next` (when there is one) is a command
 to run verbatim — `orz-site <command> <args>`, or `<tool> <command> <args>`
 when it names another program (`{ "tool": "npm", "command": "install",
-"args": ["orz-slides@1.1.0"] }`, `{ "tool": "orz-slides", "command":
+"args": ["orz-slides@1.3.0"] }`, `{ "tool": "orz-slides", "command":
 "upgrade", "args": ["slides/old.slides.md"] }`). Never `--force`. Findings
 are `{ code, message, path?, line?, target?, next? }`, sorted with the
 site-level ones (the config) first, then by path, line and code. The codes
@@ -91,7 +91,7 @@ independent of the package version.
 {
   "$schema": "https://cdn.jsdelivr.net/npm/orz-site@0.1/schema/site-1.json",
   "format": 1,
-  "carriers": { "md": "1.1.0", "slides": "1.1.0", "paged": "1.1.0" },
+  "carriers": { "md": "1.3.0", "slides": "1.3.0", "paged": "1.3.0" },
   "delivery": "cdn",
   "inline": ["handouts/**"],
   "naming": "family",
@@ -205,7 +205,7 @@ from a branch"; `.nojekyll` is always written). Claim S.2: the course
 fixture built this way in Chrome, with the `-browser` ES modules of the
 pinned versions, equals the Node build byte for byte.
 
-## Limits of 0.1
+## Limits of 0.2
 
 - A template `naming` needs every carrier the site uses at 1.1.0 or later
   (`naming-unsupported` otherwise): a page's links are rewritten by the kit

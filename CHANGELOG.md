@@ -6,6 +6,10 @@ All notable changes to **orz-site** are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-21
+
+Needs orz-markdown ≥ 2.9.0 and carriers ≥ 1.3.0 (peers `^2.9.0`, `^1.3.0`).
+
 - **`readerCopy`** in `orz-site.json` (config format 1, additive; FC-18 §8.2,
   orz-markdown 2.9.0; owner decision 2026-11-17): `true` or `{ "notice":
   "…" }` makes every page (and the index) a reader copy — opened from the
@@ -13,6 +17,9 @@ All notable changes to **orz-site** are recorded here. Versions follow
   reads "Download a copy". Read back with the carrier's `extract`; a pinned
   carrier that does not carry it is refused (`reader-copy-unsupported`,
   carriers before 1.3.0). Default `false`: the build is as before.
+- Carriers 1.3.0: the peers are `orz-mdhtml`, `orz-slides`, `orz-paged`
+  `^1.3.0` and `orz-markdown` `^2.9.0`; the tests, the course fixture and
+  the README/spec examples pin 1.3.0 (and their `-browser` ES modules).
 
 ## [0.1.0] — 2026-10-24
 

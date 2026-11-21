@@ -107,7 +107,7 @@ describe('the JSON Schema agrees with the validator', () => {
     expect(Object.keys(schema.properties['carriers']?.properties ?? {}).sort()).toEqual(['md', 'paged', 'slides']);
   });
   it('[S.16] (audit LOW-3) readerCopy.notice: the schema requires a visible character (whitespace-only, invisible-only text fails its pattern) and says the length is counted in UTF-16 code units, as the validator counts it', () => {
-    const notice = (schema.properties['readerCopy'] as unknown as { oneOf: Array<{ properties?: { notice?: { pattern?: string; description?: string; maxLength?: number } } }> }).oneOf[1].properties!.notice!;
+    const notice = (schema.properties['readerCopy'] as unknown as { oneOf: Array<{ properties?: { notice?: { pattern?: string; description?: string; maxLength?: number } } }> }).oneOf[1]!.properties!.notice!;
     expect(notice.maxLength).toBe(READER_NOTICE_MAX);
     expect(notice.description).toMatch(/UTF-16 code units/);
     // as JSON Schema tools run it: an ECMA-262 regex, unanchored, with or without the u flag
