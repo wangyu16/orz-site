@@ -57,6 +57,24 @@
         }
       ]
     },
+    "nav": {
+      "description": "(0.3) The site's navigation (FC-18 §8.2 siteNav; carriers 1.4.0 or later, else the build is refused: nav-unsupported). Every page gets the title (a link home) and its previous / next page in `pages` order, drawn by the carriers as a slim bar outside the text (never printed). orz-site resolves the text paths to the pages' names; the host chooses the order and the words. A listed path with no page is a nav-missing warning. null: nothing.",
+      "default": null,
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title"],
+          "properties": {
+            "title": { "description": "The site's title, plain text (1–200 UTF-16 code units).", "type": "string", "minLength": 1, "maxLength": 200, "pattern": "[^\\s]" },
+            "home": { "description": "A text path whose page is the home link; null or absent: the generated index.", "type": ["string", "null"], "pattern": "\\.md$" },
+            "pages": { "description": "Text paths in reading order (previous / next follow it).", "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "\\.md$" } },
+            "labels": { "description": "The link text per text path (default: the document's title); plain text, 1–200 UTF-16 code units.", "type": "object", "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "[^\\s]" } }
+          }
+        }
+      ]
+    },
     "baseUrl": {
       "description": "The site's absolute URL, ending in /. `orz-site build --base-url` overrides it (route A passes the Pages URL). Needed for the sitemap and own-host includes.",
       "default": null,

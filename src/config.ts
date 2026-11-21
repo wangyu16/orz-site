@@ -6,8 +6,8 @@
  * the same way with no dependency), and a test keeps the two in agreement.
  */
 import { globProblem } from './glob.js';
-import { sitePathProblem } from './paths.js';
-import { KINDS, type Finding, type Kind, type Naming, type SiteConfig } from './types.js';
+import { byCodeUnits, sitePathProblem } from './paths.js';
+import { KINDS, type Finding, type Kind, type Naming, type SiteConfig, type SiteNavConfig } from './types.js';
 import { VERSION } from './version.js';
 
 /** The config file's name at the site root. */
@@ -26,6 +26,7 @@ export function defaultConfig(): SiteConfig {
     inline: [],
     naming: 'family',
     readerCopy: false,
+    nav: null,
     baseUrl: null,
     includes: { allowedHosts: [], network: true, missing: 'error' },
     links: { missing: 'error' },
@@ -37,7 +38,7 @@ export function defaultConfig(): SiteConfig {
   };
 }
 
-const TOP_KEYS = ['$schema', 'format', 'carriers', 'delivery', 'inline', 'naming', 'readerCopy', 'baseUrl', 'includes', 'links', 'exclude', 'texts', 'index', 'sitemap', 'notFound'] as const;
+const TOP_KEYS = ['$schema', 'format', 'carriers', 'delivery', 'inline', 'naming', 'readerCopy', 'nav', 'baseUrl', 'includes', 'links', 'exclude', 'texts', 'index', 'sitemap', 'notFound'] as const;
 const INCLUDE_KEYS = ['allowedHosts', 'network', 'missing'] as const;
 const LINK_KEYS = ['missing'] as const;
 const INDEX_KEYS = ['mode', 'title', 'theme', 'lang'] as const;
@@ -76,6 +77,25 @@ export function readerNotice(v: unknown): { notice: string } | { problem: string
   if (/[\p{Cc}\p{Cs}\u2028\u2029]|(?![\u200c\u200d])\p{Cf}/u.test(notice)) return { problem: 'holds a control or format character' };
   if (!/[^\p{Z}\p{C}\p{M}]/u.test(notice)) return { problem: 'has nothing visible' };
   return { notice };
+}
+
+/** The longest nav title or label, in UTF-16 code units (the kit's limit, FC-18 §8.2 `siteNav`). */
+export const NAV_TEXT_MAX = 200;
+
+/**
+ * A nav title or label as the kit stores it (spaces collapsed, trimmed), or
+ * why it is not valid — the kit's rule (orz-markdown 2.10.0): 1–200 UTF-16
+ * code units, something visible, no control or format character (but the
+ * zero-width joiner and non-joiner).
+ */
+export function navText(v: unknown): { text: string } | { problem: string } {
+  if (typeof v !== 'string') return { problem: 'must be a string' };
+  const text = v.replace(/[\t\n\r ]+/g, ' ').trim();
+  if (text === '') return { problem: 'is empty' };
+  if (text.length > NAV_TEXT_MAX) return { problem: `is longer than ${NAV_TEXT_MAX} characters (UTF-16 code units)` };
+  if (/[\p{Cc}\p{Cs}\u2028\u2029]|(?![\u200c\u200d])\p{Cf}/u.test(text)) return { problem: 'holds a control or format character' };
+  if (!/[^\p{Z}\p{C}\p{M}]/u.test(text)) return { problem: 'has nothing visible' };
+  return { text };
 }
 
 /** The result of {@link validateConfig}. */
@@ -174,6 +194,48 @@ export function validateConfig(raw: unknown, file = CONFIG_FILE): ConfigResult {
         const n = readerNotice(v.notice);
         if ('problem' in n) bad('readerCopy.notice', n.problem); else c.readerCopy = n;
       }
+    }
+  }
+  if ('nav' in raw && raw.nav !== null) {
+    const v = raw.nav;
+    if (!isObject(v)) bad('nav', 'must be null or { "title": "…", "home"?: "index.md", "pages": ["a.md", …], "labels"?: { "a.md": "…" } }');
+    else {
+      unknown(v, ['title', 'home', 'pages', 'labels'], 'nav.');
+      const n: SiteNavConfig = { title: '', home: null, pages: [], labels: {} };
+      let valid = true;
+      const fail = (key: string, m: string): void => { bad(key, m); valid = false; };
+      const t = navText(v.title);
+      if (!('title' in v)) fail('nav.title', 'required (the site\'s title, shown on every page)');
+      else if ('problem' in t) fail('nav.title', t.problem); else n.title = t.text;
+      const textPath = (key: string, p: unknown): string | null => {
+        if (typeof p !== 'string') { fail(key, 'must be a text path such as "unit1/notes.md"'); return null; }
+        const problem = sitePathProblem(p);
+        if (problem) { fail(key, `${JSON.stringify(p)} is not a site path (${problem})`); return null; }
+        if (!/\.md$/.test(p)) { fail(key, `${JSON.stringify(p)} is not a text (x.md, x.slides.md, x.paged.md)`); return null; }
+        return p;
+      };
+      if ('home' in v && v.home !== null) { const h = textPath('nav.home', v.home); if (h) n.home = h; }
+      if ('pages' in v) {
+        if (!Array.isArray(v.pages)) fail('nav.pages', 'must be a list of text paths in reading order');
+        else {
+          const seen = new Set<string>();
+          v.pages.forEach((p, i) => {
+            const q = textPath(`nav.pages[${i}]`, p);
+            if (!q) return;
+            if (seen.has(q)) { fail(`nav.pages[${i}]`, `${q} is listed twice (a page has one place in the order)`); return; }
+            seen.add(q); n.pages.push(q);
+          });
+        }
+      }
+      if ('labels' in v) {
+        if (!isObject(v.labels)) fail('nav.labels', 'must be an object of text path → link text');
+        else for (const k of Object.keys(v.labels).sort(byCodeUnits)) {
+          if (!textPath(`nav.labels.${k}`, k)) continue;
+          const l = navText(v.labels[k]);
+          if ('problem' in l) fail(`nav.labels.${k}`, l.problem); else n.labels[k] = l.text;
+        }
+      }
+      if (valid) c.nav = n;
     }
   }
   if ('baseUrl' in raw) {

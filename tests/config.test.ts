@@ -66,6 +66,18 @@ describe('[S.11] config validation', () => {
     expect(templateProblem('{stem}.page.html')).toBeNull();
   });
 
+  it('[S.17] nav (0.3): null by default; { title, home?, pages, labels? } is accepted (title and labels collapsed and trimmed as the kit stores them; home null = the index); a missing or invalid title, a path that is not a site text path, a page listed twice, an invalid label, another key or another type is bad-config / unknown-key', () => {
+    expect(validateConfig({ format: 1 }).config?.nav).toBeNull();
+    expect(validateConfig({ format: 1, nav: null }).config?.nav).toBeNull();
+    expect(validateConfig({ format: 1, nav: { title: '  Gases \n and solutions ', pages: ['a.md', 'u/b.slides.md'], labels: { 'a.md': ' 1 · A ' } } }).config?.nav).toEqual({ title: 'Gases and solutions', home: null, pages: ['a.md', 'u/b.slides.md'], labels: { 'a.md': '1 · A' } });
+    expect(validateConfig({ format: 1, nav: { title: 'T', home: 'index.md' } }).config?.nav).toEqual({ title: 'T', home: 'index.md', pages: [], labels: {} });
+    for (const bad of [{}, { title: '' }, { title: 'x'.repeat(201) }, { title: 'a‮b' }, { title: 3 }, { title: 'T', home: '../x.md' }, { title: 'T', home: 'x.html' }, { title: 'T', pages: 'a.md' }, { title: 'T', pages: ['a.md', 'a.md'] }, { title: 'T', pages: ['/a.md'] }, { title: 'T', labels: { 'a.md': '' } }, { title: 'T', labels: [] }, 'nav', 1, []]) {
+      expect(codes({ format: 1, nav: bad }), JSON.stringify(bad)).toContain('bad-config');
+      expect(validateConfig({ format: 1, nav: bad }).config, JSON.stringify(bad)).toBeNull();
+    }
+    expect(codes({ format: 1, nav: { title: 'T', sequence: [] } })).toEqual(['unknown-key']);
+  });
+
   it('[S.16] readerCopy (0.2): false by default; true, false and { notice } are accepted (the notice collapsed and trimmed as the kit stores it; {} is true); an empty, too long or control-character notice, another key or another type is bad-config / unknown-key', () => {
     expect(validateConfig({ format: 1 }).config?.readerCopy).toBe(false);
     expect(validateConfig({ format: 1, readerCopy: true }).config?.readerCopy).toBe(true);

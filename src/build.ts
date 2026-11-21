@@ -13,8 +13,8 @@ import { CONFIG_FILE, baseUrlProblem, defaultConfig, validateConfig } from './co
 import { matchesAny } from './glob.js';
 import { indexText, type IndexEntry } from './index-page.js';
 import { defaultFetch, isSoftInclude, recordHash, resolveIncludes, type IncludeContext } from './includes.js';
-import { baseOf, byCodeUnits, decodePath, dirOf, encodePath, resolveIn, sitePathProblem } from './paths.js';
-import { KINDS, type BuildEnv, type BuildResult, type CarrierModule, type DocumentInfo, type Finding, type Kind, type LinkRef, type Manifest, type ManifestDocument, type Report, type SiteConfig, type SiteFiles } from './types.js';
+import { baseOf, byCodeUnits, decodePath, dirOf, encodePath, relativeFrom, resolveIn, sitePathProblem } from './paths.js';
+import { KINDS, type BuildEnv, type BuildResult, type CarrierModule, type DocumentInfo, type Finding, type Kind, type LinkRef, type Manifest, type ManifestDocument, type Report, type SiteConfig, type SiteFiles, type SiteNavRecord } from './types.js';
 import { canonicalJson, sha256Hex, utf8 } from './util.js';
 import { VERSION } from './version.js';
 
@@ -316,14 +316,71 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
     add({ code: 'missing-asset', message: `${l.href}: ${file} is not in the built site${skipped.some((s) => s.path === resolved) ? ' (excluded)' : ''}`, ...at }, 'warning');
   }
 
+  // ── navigation (0.3; FC-18 §8.2 `siteNav`, kit 2.10.0) ──────────────────────
+  // orz-site names no consumer and knows no structure: the host gives the title, the order and the words;
+  // orz-site resolves each text path to its page (the same names as the links) and hands each page its record.
+  const navOf = new Map<string, SiteNavRecord>(); // output path → its record
+  if (cfg.nav) {
+    const nav = cfg.nav;
+    const page = (p: string): string | null => { const d = docByPath.get(p); return d && d.output !== GENERATED.notFound ? d.output : null; };
+    const why = (p: string): string => (cfg.notFound === p ? 'it is the 404 page' : notBuilt.has(p) ? `it is not built (${notBuilt.get(p)})` : 'it is not a text of the site');
+    let homeOut: string | null = null;
+    if (nav.home !== null) {
+      homeOut = page(nav.home);
+      if (!homeOut) add({ code: 'nav-missing', message: `nav.home: ${nav.home} has no page — ${why(nav.home)}; ${makeIndex ? 'the generated index is the home link' : 'no navigation bar is drawn'}`, path: CONFIG_FILE, target: 'nav.home' }, 'warning');
+    }
+    if (!homeOut && makeIndex) homeOut = GENERATED.index;
+    if (!homeOut && nav.home === null) add({ code: 'nav-missing', message: 'nav: no "home" and no generated index: no navigation bar is drawn (set "nav.home")', path: CONFIG_FILE, target: 'nav.home' }, 'warning');
+    const order: string[] = [];
+    nav.pages.forEach((p, i) => {
+      if (page(p)) order.push(p);
+      else add({ code: 'nav-missing', message: `nav.pages[${i}]: ${p} has no page — ${why(p)}; it is left out of previous / next`, path: CONFIG_FILE, target: `nav.pages[${i}]` }, 'warning');
+    });
+    for (const k of Object.keys(nav.labels)) if (!nav.pages.includes(k)) add({ code: 'nav-missing', message: `nav.labels: ${k} is not in nav.pages; its label is not used`, path: CONFIG_FILE, target: `nav.labels.${k}` }, 'warning');
+    // a document's title as the kit takes a label (spaces collapsed, at most 200 UTF-16 code units, never a lone half)
+    const label = (p: string): string => {
+      let t = (nav.labels[p] ?? (docByPath.get(p) as Doc).info.title).replace(/[\t\n\r ]+/g, ' ').trim();
+      if (t.length > 200) t = t.slice(0, /[\uD800-\uDBFF]/.test(t.charAt(199)) ? 199 : 200);
+      return /[^\p{Z}\p{C}\p{M}]/u.test(t) && !/[\p{Cc}\p{Cs}\u2028\u2029]|(?![\u200c\u200d])\p{Cf}/u.test(t) ? t : baseOf(p);
+    };
+    const href = (from: string, to: string): string => encodePath(relativeFrom(dirOf(from), to));
+    if (homeOut) {
+      const home = homeOut;
+      for (const d of docs) {
+        if (d.output === GENERATED.notFound) continue; // served at any address: relative links would not resolve
+        const i = order.indexOf(d.path);
+        const prev = i > 0 ? order[i - 1] : undefined;
+        const next = i >= 0 && i < order.length - 1 ? order[i + 1] : undefined;
+        navOf.set(d.output, {
+          title: nav.title, home: href(d.output, home),
+          ...(prev ? { previous: { href: href(d.output, page(prev) as string), label: label(prev) } } : {}),
+          ...(next ? { next: { href: href(d.output, page(next) as string), label: label(next) } } : {}),
+        });
+      }
+      if (makeIndex) navOf.set(GENERATED.index, { title: nav.title, home: href(GENERATED.index, home) });
+    }
+  }
+
   if (errors.length > 0) return refused(errors, warnings, cfg, baseUrl);
 
   // A non-family naming must reach the file: the carrier's own `extract` reads it back from `#orz-shell`.
   // A carrier before 1.1 ignores `twinLinks`: its page would link to the family names — refused, once per kind.
   const unsupported = new Set<Kind>();
   const readerUnsupported = new Set<Kind>();
-  function carriesNaming(kind: Kind, c: CarrierModule, html: string): boolean {
-    return carriesReader(kind, c, html) && carriesLinks(kind, c, html);
+  const navUnsupported = new Set<Kind>();
+  function carriesNaming(kind: Kind, c: CarrierModule, html: string, nav?: SiteNavRecord): boolean {
+    return carriesReader(kind, c, html) && carriesLinks(kind, c, html) && carriesNav(kind, c, html, nav);
+  }
+  // (0.3) a page's navigation must reach its file: carriers before 1.4 ignore `siteNav` (its pages would have no bar)
+  function carriesNav(kind: Kind, c: CarrierModule, html: string, nav?: SiteNavRecord): boolean {
+    if (!nav) return true;
+    if (navUnsupported.has(kind)) return false;
+    let got: unknown;
+    try { got = c.extract(html)?.siteNav; } catch { got = undefined; }
+    if (got && typeof got === 'object' && JSON.stringify(got) === JSON.stringify(nav)) return true;
+    navUnsupported.add(kind);
+    add({ code: 'nav-unsupported', message: `${CONFIG_FILE} gives the pages a navigation bar ("nav"), but ${PACKAGE[kind]} ${c.version} does not carry it into its files (siteNav): its pages would have no title, home or previous / next links. Pin ${PACKAGE[kind]} 1.4.0 or later in "carriers", or leave "nav" out`, path: CONFIG_FILE, target: `carriers.${kind}` });
+    return false;
   }
   function carriesReader(kind: Kind, c: CarrierModule, html: string): boolean {
     if (!reader) return true;
@@ -356,7 +413,9 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
   for (const d of docs) {
     const r = records.get(d.path) as Awaited<ReturnType<typeof resolveIncludes>>;
     const textSha = await sha256Hex(d.bytes);
-    const key = await sha256Hex(JSON.stringify(['orz-site', VERSION, d.kind, d.carrier.version, d.delivery, namingKey, textSha, await recordHash(r.record)]));
+    const nav = navOf.get(d.output);
+    // (0.3) the page's navigation is part of its key only when the site has one (a page re-assembles when its neighbours change)
+    const key = await sha256Hex(JSON.stringify(['orz-site', VERSION, d.kind, d.carrier.version, d.delivery, cfg.nav ? [namingKey, nav ?? null] : namingKey, textSha, await recordHash(r.record)]));
     let html: Uint8Array | null = null;
     const prev = previous?.manifest.documents.find((x) => x.path === d.path);
     if (prev && prev.key === key && prev.output === d.output) {
@@ -365,8 +424,8 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
     }
     if (!html) {
       try {
-        const s = await d.carrier.assemble(d.text, { delivery: d.delivery, ...(Object.keys(r.record).length > 0 ? { includes: r.record } : {}), ...withNaming });
-        if (!carriesNaming(d.kind, d.carrier, s)) continue;
+        const s = await d.carrier.assemble(d.text, { delivery: d.delivery, ...(Object.keys(r.record).length > 0 ? { includes: r.record } : {}), ...withNaming, ...(nav ? { siteNav: nav } : {}) });
+        if (!carriesNaming(d.kind, d.carrier, s, nav)) continue;
         html = utf8(s);
       } catch (e) {
         add({ code: 'invalid-text', message: `${PACKAGE[d.kind]} ${d.carrier.version} cannot assemble it: ${(e as Error).message}`, path: d.path });
@@ -396,11 +455,12 @@ export async function buildSite(files: SiteFiles, config: unknown, env: BuildEnv
     const delivery = matchesAny(GENERATED.indexText, cfg.inline) ? 'inline' : cfg.delivery;
     let html: Uint8Array;
     let s: string;
-    try { s = await md.assemble(text, { delivery, ...withNaming }); } catch (e) {
+    const indexNav = navOf.get(GENERATED.index);
+    try { s = await md.assemble(text, { delivery, ...withNaming, ...(indexNav ? { siteNav: indexNav } : {}) }); } catch (e) {
       add({ code: 'invalid-text', message: `the generated index cannot be assembled: ${(e as Error).message}`, path: GENERATED.index });
       return refused(errors, warnings, cfg, baseUrl);
     }
-    if (!carriesNaming('md', md, s)) return refused(errors, warnings, cfg, baseUrl);
+    if (!carriesNaming('md', md, s, indexNav)) return refused(errors, warnings, cfg, baseUrl);
     html = utf8(s);
     out.set(GENERATED.index, html);
     if (publishIndexText) out.set(GENERATED.indexText, utf8(text));

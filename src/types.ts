@@ -14,6 +14,26 @@ export type SiteFiles = ReadonlyMap<string, Uint8Array>;
 export type Naming = 'family' | { md?: string; slides?: string; paged?: string };
 
 /** `orz-site.json`, format 1, after validation and defaults (§3.2). */
+/** (0.3) The `nav` key: the host decides the order and the words; orz-site resolves paths to pages. */
+export interface SiteNavConfig {
+  /** The site's title, shown at the top of every page (plain text). */
+  title: string;
+  /** A text path whose page is the home link; null: the generated index. */
+  home: string | null;
+  /** Text paths in reading order: previous / next follow this list. */
+  pages: string[];
+  /** The link text per text path (default: the document's title). */
+  labels: Record<string, string>;
+}
+
+/** (0.3) A page's place in the site, as the kit's `siteNav` takes it. */
+export interface SiteNavRecord {
+  title: string;
+  home: string;
+  previous?: { href: string; label: string };
+  next?: { href: string; label: string };
+}
+
 export interface SiteConfig {
   format: 1;
   carriers: Partial<Record<Kind, string>>;
@@ -27,6 +47,13 @@ export interface SiteConfig {
    * can't be saved to the website, with Save as "Download a copy".
    */
   readerCopy: false | true | { notice: string };
+  /**
+   * (0.3) The site's navigation (FC-18 §8.2 `siteNav`, orz-markdown 2.10.0):
+   * null (default) writes nothing; otherwise every page gets its place in
+   * the set — the title, a link home, and its previous / next page in
+   * `pages` order — drawn by the carriers as a bar outside the text.
+   */
+  nav: SiteNavConfig | null;
   baseUrl: string | null;
   includes: { allowedHosts: string[]; network: boolean; missing: 'error' | 'warn' };
   links: { missing: 'error' | 'warn' };
@@ -87,6 +114,8 @@ export interface Extracted {
   twinLinks?: { md?: string; slides?: string; paged?: string } | null;
   /** (kit 2.9.0) The reader-copy setting the file carries (`#orz-shell` `"readerCopy"`). */
   readerCopy?: { notice?: string } | null;
+  /** (kit 2.10.0) The site navigation the file carries (`#orz-shell` `"siteNav"`). */
+  siteNav?: SiteNavRecord | null;
 }
 
 /** One link of a text as the renderer sees it (the kit's `linkTargets`, orz-markdown ≥ 2.5.0; spec §13 K2). */
@@ -111,7 +140,7 @@ export interface CarrierModule {
   kind: Kind;
   version: string;
   formats: readonly number[];
-  assemble(text: string, o: { delivery: 'inline' | 'cdn'; includes?: Record<string, string>; twinLinks?: Naming; readerCopy?: true | { notice: string } }): string | Promise<string>;
+  assemble(text: string, o: { delivery: 'inline' | 'cdn'; includes?: Record<string, string>; twinLinks?: Naming; readerCopy?: true | { notice: string }; siteNav?: SiteNavRecord }): string | Promise<string>;
   extract(html: string): Extracted | null;
   readDocument(text: string, o?: { filename?: string }): DocumentInfo;
   /** K2: the include targets as the carrier's kit parses them. */

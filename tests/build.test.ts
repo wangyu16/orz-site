@@ -423,3 +423,83 @@ describe('[S.10] excludes never reach the output', () => {
     expect(r.files.has('shared/p.md')).toBe(false);
   });
 });
+
+describe('[S.17] nav: each page\'s place in the site', () => {
+  /** The pinned carriers, given siteNav as a 1.4 carrier gives it to the kit (#orz-shell "siteNav"): orz-site's side, whatever the pins. */
+  const navCarriers = async (seen: Array<[string, unknown]>): Promise<BuildEnv> => {
+    const e = await env();
+    const wrap = (c: CarrierModule): CarrierModule => ({
+      ...c,
+      assemble: async (t, o) => {
+        seen.push([t.slice(0, 40), o.siteNav]);
+        const { siteNav, ...rest } = o;
+        const html = await c.assemble(t, rest);
+        if (!siteNav) return html;
+        return html.replace(/(<script type="application\/json" id="orz-shell">\{[^<]*)\}<\/script>/, (_m, head: string) => `${head},"siteNav":${JSON.stringify(siteNav).replace(/</g, '\\u003c')}}</script>`);
+      },
+      extract: (html) => {
+        const x = c.extract(html);
+        const shell = /<script type="application\/json" id="orz-shell">([^<]*)<\/script>/.exec(html)?.[1];
+        const sn = shell ? (JSON.parse(shell) as { siteNav?: unknown }).siteNav : undefined;
+        return x ? { ...x, ...(sn ? { siteNav: sn as never } : {}) } : x;
+      },
+    });
+    return { ...e, carriers: Object.fromEntries(Object.entries(e.carriers ?? {}).map(([k, c]) => [k, wrap(c as CarrierModule)])) as BuildEnv['carriers'] };
+  };
+  const files = () => mapOf({
+    'index.md': text('Home', '# Home'),
+    'unit 1/intro.md': text('Intro', '# Intro'),
+    'unit 1/intro.slides.md': text('Intro slides', '<!-- slide -->\n## Intro'),
+    'unit2/gases.md': text('Gases', '# Gases'),
+    'extra.md': text('Extra', '# Extra'),
+  });
+  const NAV = { title: 'Gases & Solutions', home: 'index.md', pages: ['unit 1/intro.md', 'unit 1/intro.slides.md', 'missing.md', 'unit2/gases.md'], labels: { 'unit 1/intro.slides.md': '1 · Intro: slides' } };
+  const navIn = (html: Uint8Array | undefined): unknown => { const m = /<script type="application\/json" id="orz-shell">([^<]*)<\/script>/.exec(dec(html)); return m ? (JSON.parse(m[1] as string) as { siteNav?: unknown }).siteNav : undefined; };
+
+  it('every page gets the title, its home link and its previous / next in pages order as relative, percent-encoded hrefs to the pages\' names; labels from nav.labels, else the document\'s title; a page outside pages gets title and home only; a listed path with no page is a nav-missing warning (skipped, never a refusal); without nav the build is byte for byte as before and passes nothing; the page\'s record is part of its build key', async () => {
+    const seen: Array<[string, unknown]> = [];
+    const r = await buildSite(files(), cfg({ nav: NAV, index: { mode: 'off' } }), await navCarriers(seen));
+    expect(r.report.errors).toEqual([]);
+    expect(r.report.warnings.filter((w) => w.code === 'nav-missing').map((w) => w.target)).toEqual(['nav.pages[2]']);
+    expect(navIn(r.files.get('unit 1/intro.md.html'))).toEqual({ title: 'Gases & Solutions', home: '../index.md.html', next: { href: 'intro.slides.html', label: '1 · Intro: slides' } });
+    expect(navIn(r.files.get('unit 1/intro.slides.html'))).toEqual({ title: 'Gases & Solutions', home: '../index.md.html', previous: { href: 'intro.md.html', label: 'Intro' }, next: { href: '../unit2/gases.md.html', label: 'Gases' } });
+    expect(navIn(r.files.get('unit2/gases.md.html'))).toEqual({ title: 'Gases & Solutions', home: '../index.md.html', previous: { href: '../unit%201/intro.slides.html', label: '1 · Intro: slides' } });
+    expect(navIn(r.files.get('extra.md.html'))).toEqual({ title: 'Gases & Solutions', home: 'index.md.html' });
+    expect(navIn(r.files.get('index.md.html'))).toEqual({ title: 'Gases & Solutions', home: 'index.md.html' });
+    // without nav: nothing passed, the same bytes as the carriers alone
+    const none: Array<[string, unknown]> = [];
+    const plain = await buildSite(files(), cfg({ index: { mode: 'off' } }), await navCarriers(none));
+    expect(none.every(([, n]) => n === undefined)).toBe(true);
+    const direct = await buildSite(files(), cfg({ index: { mode: 'off' } }), await env());
+    for (const [p, b] of direct.files) expect(Buffer.compare(Buffer.from(plain.files.get(p) ?? new Uint8Array()), Buffer.from(b)), p).toBe(0);
+    expect(direct.manifest.documents.map((d) => d.key)).toEqual(plain.manifest.documents.map((d) => d.key));
+    // keys: the nav changes them; a neighbour's change re-keys the pages next to it only
+    const moved = await buildSite(files(), cfg({ nav: { ...NAV, pages: ['unit 1/intro.md', 'unit2/gases.md'] }, index: { mode: 'off' } }), await navCarriers([]));
+    const key = (b: typeof r, p: string) => b.manifest.documents.find((d) => d.path === p)?.key;
+    expect(key(r, 'unit 1/intro.md')).not.toBe(key(plain, 'unit 1/intro.md'));
+    expect(key(moved, 'unit 1/intro.md')).not.toBe(key(r, 'unit 1/intro.md'));
+    expect(key(moved, 'extra.md')).toBe(key(r, 'extra.md'));
+  });
+
+  it('home defaults to the generated index (which gets title and home too); a home with no page falls back to the index with a nav-missing warning, or draws no bar without one; the 404 page gets none', async () => {
+    const r = await buildSite(files(), cfg({ nav: { title: 'T', pages: ['extra.md', 'unit2/gases.md'] }, index: { mode: 'on' }, notFound: 'index.md' }), await navCarriers([]));
+    expect(r.report.errors).toEqual([]);
+    expect(navIn(r.files.get('unit2/gases.md.html'))).toEqual({ title: 'T', home: '../index.html', previous: { href: '../extra.md.html', label: 'Extra' } });
+    expect(navIn(r.files.get('index.html'))).toEqual({ title: 'T', home: 'index.html' });
+    expect(navIn(r.files.get('404.html'))).toBeUndefined();
+    const lost = await buildSite(files(), cfg({ nav: { title: 'T', home: 'gone.md', pages: [] }, index: { mode: 'on' } }), await navCarriers([]));
+    expect(lost.report.warnings.filter((w) => w.code === 'nav-missing').map((w) => w.target)).toEqual(['nav.home']);
+    expect(navIn(lost.files.get('extra.md.html'))).toEqual({ title: 'T', home: 'index.html' });
+    const bare = await buildSite(files(), cfg({ nav: { title: 'T', pages: ['extra.md'] }, index: { mode: 'off' } }), await navCarriers([]));
+    expect(bare.report.warnings.filter((w) => w.code === 'nav-missing').map((w) => w.target)).toEqual(['nav.home']);
+    expect(navIn(bare.files.get('extra.md.html'))).toBeUndefined();
+  });
+
+  it('a pinned carrier that does not carry siteNav into its files is refused (nav-unsupported, once per kind, naming the pin), nothing built', async () => {
+    const r = await buildSite(files(), cfg({ nav: NAV, index: { mode: 'off' } }), await env());
+    expect(r.ok).toBe(false);
+    expect(r.report.errors.map((x) => [x.code, x.target])).toEqual([['nav-unsupported', 'carriers.md'], ['nav-unsupported', 'carriers.slides']]);
+    expect(r.report.errors[0]?.message).toContain(`orz-mdhtml ${PINS.md} does not carry it`);
+    expect(r.files.size).toBe(0);
+  });
+});

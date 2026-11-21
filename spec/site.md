@@ -6,7 +6,9 @@ orz-site 0.1 (REBUILD §3 Phase 4 step 9) on kit 2.5.0 (K1, K2): the
 kit's browser-safe `includeTargets`/`linkTargets` (Node = browser, S.2), and
 a non-family `naming` through the kit's `twinLinks` (§4.2 option A), refused
 as `naming-unsupported` when a pinned carrier predates 1.1 (§3.5); 0.2 adds
-`readerCopy` (§3.2; kit 2.9.0, carriers 1.3.0); claims in
+`readerCopy` (§3.2; kit 2.9.0, carriers 1.3.0); 0.3 adds `nav` (§3.2; kit
+2.10.0, carriers 1.4.0; owner decision 2026-11-21: one fixed, minimal bar
+drawn by the carriers is allowed despite §1's "no layouts of its own"); claims in
 [notes/CLAIMS.md](../notes/CLAIMS.md).
 Decisions it rests on: FD-05, FD-07, FD-08 (family `docs/DECISIONS.md`);
 contracts it uses: FC-07, FC-08, FC-18, FC-19 (family `docs/CONTRACTS.md`).
@@ -32,7 +34,8 @@ server and no dev server (a local preview is "build, then open the folder");
 no Markdown parsing of its own (RULES §2.4: every parse is the kit's, reached
 through the pinned carriers); no Alembic logic (course structure, terms,
 private/public routing, permalink rewriting — a host filters and prepares the
-file map it passes in, §2.1); no themes or layouts of its own (§5); no
+file map it passes in, §2.1); no themes or layouts of its own (§5; the one exception, owner decision
+2026-11-21: `nav`'s fixed, minimal bar, which the carriers draw, §3.2); no
 upgrade of 0.x files (§2.4); no publishing to npm or GitHub itself (route B's
 commit is the app's, §9).
 
@@ -154,6 +157,7 @@ it finds installed and warns `no-config`; `check` is red.
   "inline": ["handouts/**"],
   "naming": "family",
   "readerCopy": false,
+  "nav": null,
   "baseUrl": "https://owner.github.io/course/",
   "includes": { "allowedHosts": [], "network": true, "missing": "error" },
   "links": { "missing": "error" },
@@ -173,6 +177,7 @@ it finds installed and warns `no-config`; `check` is red.
 | `inline` | globs of documents assembled `inline` anyway (e.g. a handout meant to be downloaded and used offline) | `[]` |
 | `naming` | output names (§3.3) | `"family"` |
 | `readerCopy` | (0.2) pages published for readers (FC-18 §8.2, kit 2.9.0): `true` — opened from the site, a page's editor says at once that edits can't be saved to the website (the kit's words) and its Save reads "Download a copy" (a downloaded copy is an ordinary file); `{ "notice": "…" }` — the same with the site's own plain words (spaces collapsed, 1–300 UTF-16 code units, at least one visible character, no control or format character — the zero-width joiner and non-joiner allowed: the kit's rule). Every page and the index carry it (`assemble(text, { readerCopy })`); the build reads it back with the carrier's `extract` and refuses a pinned carrier that does not carry it (`reader-copy-unsupported`, carriers before 1.3). Part of every page's build key when set | `false` |
+| `nav` | (0.3) the site's navigation (FC-18 §8.2 `siteNav`, kit 2.10.0; owner 2026-11-21): `{ title, home?, pages, labels? }`. orz-site names no consumer and knows no structure: the host chooses the title, the order and the words; orz-site resolves each text path to its page (the naming, §3.3) and hands each page its own record — `title`; `home`: the relative, percent-encoded href to `home`'s page (default: the generated index); `previous` / `next`: the pages before and after it in `pages` (only built ones; label `labels[path]`, else the document's title, at most 200 characters). A page not in `pages` and the generated index get `title` and `home` only; the 404 page (served at any address) none. A listed path with no page is a warning (`nav-missing`), never a refusal; with no home page and no index no bar is drawn (`nav-missing`). Every record reaches its page as `assemble(text, { siteNav })`; read back with the carrier's `extract`, a pinned carrier that does not carry it is refused (`nav-unsupported`, carriers before 1.4). Each page's record is part of its build key when `nav` is set (a page re-assembles when its neighbours change); unset, the build is byte for byte as before | `null` |
 | `baseUrl` | the site's absolute URL, ending in `/`; the CLI's `--base-url` overrides it (route A passes Pages' URL) | none |
 | `includes` | §2.5 | as shown |
 | `links.missing` | `error` or `warn` for a link to a text that is not built (§4) | `error` |
@@ -460,7 +465,7 @@ interface Finding { code: string; message: string; path?: string; line?: number;
 
 Findings sorted by path, line, code. Codes (new ones may be added, none
 renamed): `bad-config`, `unknown-key`, `newer-config`, `no-config`,
-`shell-mismatch`, `naming-unsupported`, `reader-copy-unsupported`, `name-collision`,
+`shell-mismatch`, `naming-unsupported`, `reader-copy-unsupported`, `nav-unsupported`, `nav-missing`, `name-collision`,
 `case-collision`, `not-utf8`, `invalid-text`, `newer-format`,
 `carrier-mismatch`, `empty-text`, `assembled-input`, `legacy-file`,
 `missing-link`, `missing-asset`, `raw-twin-link`, `root-relative`,

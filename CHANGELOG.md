@@ -6,6 +6,21 @@ All notable changes to **orz-site** are recorded here. Versions follow
 
 ## [Unreleased]
 
+Needs orz-markdown ≥ 2.10.0 and carriers ≥ 1.4.0 for `nav` (on release: the
+peers `^2.10.0` / `^1.4.0`, the pins and the course fixture move to them;
+prepared against the carriers' `course-nav` branches).
+
+- **`nav`** in `orz-site.json` (config format 1, additive; FC-18 §8.2
+  `siteNav`, orz-markdown 2.10.0; owner decision 2026-11-21, which allows
+  this one fixed bar despite "no layouts of its own"): `{ "title", "home"?,
+  "pages": [...], "labels"? }` gives every page its place in the site — the
+  title linking home and its previous / next page in `pages` order —
+  resolved to the pages' names (relative, percent-encoded) and drawn by the
+  carriers as a slim bar outside the text (never printed). A listed path
+  with no page is a warning (`nav-missing`); a pinned carrier that does not
+  carry it is refused (`nav-unsupported`, carriers before 1.4.0). Part of
+  each page's build key when set; unset, the build is as before.
+
 ## [0.2.0] — 2026-11-21
 
 Needs orz-markdown ≥ 2.9.0 and carriers ≥ 1.3.0 (peers `^2.9.0`, `^1.3.0`).
