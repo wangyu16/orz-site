@@ -1,6 +1,6 @@
 {
   "name": "orz-site",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A folder of orz texts (Markdown documents, slide decks, paged documents) as a static site of self-editing pages — for GitHub Pages and any static host.",
   "type": "module",
   "license": "MIT",
@@ -53,10 +53,10 @@
     "test:release": "tsx scripts/test-release.ts"
   },
   "peerDependencies": {
-    "orz-markdown": "^2.9.0",
-    "orz-mdhtml": "^1.3.0",
-    "orz-paged": "^1.3.0",
-    "orz-slides": "^1.3.0"
+    "orz-markdown": "^2.10.0",
+    "orz-mdhtml": "^1.4.0",
+    "orz-paged": "^1.4.0",
+    "orz-slides": "^1.4.0"
   },
   "peerDependenciesMeta": {
     "orz-mdhtml": {
@@ -72,13 +72,13 @@
   "devDependencies": {
     "@types/node": "22.20.5",
     "esbuild": "0.28.2",
-    "orz-markdown": "2.9.0",
-    "orz-mdhtml": "1.3.0",
-    "orz-mdhtml-browser": "1.3.0",
-    "orz-paged": "1.3.0",
-    "orz-paged-browser": "1.3.0",
-    "orz-slides": "1.3.0",
-    "orz-slides-browser": "1.3.0",
+    "orz-markdown": "2.10.0",
+    "orz-mdhtml": "1.4.0",
+    "orz-mdhtml-browser": "1.4.0",
+    "orz-paged": "1.4.0",
+    "orz-paged-browser": "1.4.0",
+    "orz-slides": "1.4.0",
+    "orz-slides-browser": "1.4.0",
     "playwright-core": "1.64.0",
     "tsx": "4.22.4",
     "typescript": "5.9.3",

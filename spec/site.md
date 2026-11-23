@@ -152,7 +152,7 @@ it finds installed and warns `no-config`; `check` is red.
 {
   "$schema": "https://cdn.jsdelivr.net/npm/orz-site@0.1/schema/site-1.json",
   "format": 1,
-  "carriers": { "md": "1.3.0", "slides": "1.3.0", "paged": "1.3.0" },
+  "carriers": { "md": "1.4.0", "slides": "1.4.0", "paged": "1.4.0" },
   "delivery": "cdn",
   "inline": ["handouts/**"],
   "naming": "family",
@@ -391,10 +391,10 @@ build never deletes a folder it did not make.
 ```json
 {
   "format": 1,
-  "generator": "orz-site 0.2.0",
+  "generator": "orz-site 0.3.0",
   "config": { "sha256": "…" },
   "baseUrl": "https://owner.github.io/course/",
-  "carriers": { "md": { "version": "1.3.0" }, "slides": { "version": "1.3.0" } },
+  "carriers": { "md": { "version": "1.4.0" }, "slides": { "version": "1.4.0" } },
   "naming": "family",
   "documents": [
     { "path": "week1.slides.md", "sha256": "…", "kind": "slides", "output": "week1.slides.html",
@@ -504,7 +504,7 @@ orz-site init  [dir] [--github] [--json]
 the running orz-site; Pages source must be "GitHub Actions"):
 
 ```yaml
-# Written by orz-site 0.2.0 (orz-site init --github). The versions below
+# Written by orz-site 0.3.0 (orz-site init --github). The versions below
 # must match orz-site.json; `orz-site check` reports a difference.
 name: Publish site
 on:
@@ -536,7 +536,7 @@ jobs:
         run: >
           npm install --prefix "$RUNNER_TEMP/orz" --no-save --no-package-lock
           --ignore-scripts --no-audit --no-fund
-          orz-site@0.2.0 orz-mdhtml@1.3.0 orz-slides@1.3.0 orz-paged@1.3.0
+          orz-site@0.3.0 orz-mdhtml@1.4.0 orz-slides@1.4.0 orz-paged@1.4.0
       - name: Build
         run: >
           "$RUNNER_TEMP/orz/node_modules/.bin/orz-site" build .
@@ -621,7 +621,7 @@ paths (excluded, §2.2); it never pushes or publishes.
 
 ## 11. Versioning
 
-- **0.1.0** first (REBUILD Phase 4 step 9); **0.2.0** `readerCopy`; **1.0.0** once Alembic's
+- **0.1.0** first (REBUILD Phase 4 step 9); **0.2.0** `readerCopy`; **0.3.0** `nav`; **1.0.0** once Alembic's
   Phase 5 has built a real site with it. Pre-1.0: minor for a new capability
   or behaviour change, patch for fixes (RULES §4.1). One package, no
   `-browser` twin: the main entry is the browser ESM (no bundled
@@ -633,7 +633,7 @@ paths (excluded, §2.2); it never pushes or publishes.
   key's meaning is format 2, and orz-site reads every older format.
 - **Manifest format** `format: 1`, same rules.
 - **Carriers:** peer dependencies `orz-mdhtml`, `orz-slides`, `orz-paged`
-  `^1.3.0` and `orz-markdown` `^2.9.0` since 0.2 (`readerCopy`); 0.1 had
+  `^1.4.0` and `orz-markdown` `^2.10.0` since 0.3 (`nav`); 0.2 had `^1.3.0` and `^2.9.0` (`readerCopy`); 0.1 had
   `^1.1.0` and `^2.5.0` (K1).
 
 ## 12. Claims (S.*; family root `notes/PHASE4-CLAIMS.md`)

@@ -6,9 +6,9 @@ All notable changes to **orz-site** are recorded here. Versions follow
 
 ## [Unreleased]
 
-Needs orz-markdown ≥ 2.10.0 and carriers ≥ 1.4.0 for `nav` (on release: the
-peers `^2.10.0` / `^1.4.0`, the pins and the course fixture move to them;
-prepared against the carriers' `course-nav` branches).
+## [0.3.0] — 2026-11-22
+
+Peers `orz-markdown ^2.10.0` and the carriers `^1.4.0` (was `^2.9.0` / `^1.3.0`).
 
 - **`nav`** in `orz-site.json` (config format 1, additive; FC-18 §8.2
   `siteNav`, orz-markdown 2.10.0; owner decision 2026-11-21, which allows
