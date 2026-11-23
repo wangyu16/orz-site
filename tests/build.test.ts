@@ -495,8 +495,20 @@ describe('[S.17] nav: each page\'s place in the site', () => {
     expect(navIn(bare.files.get('extra.md.html'))).toBeUndefined();
   });
 
+  it('with the real pinned carriers (1.4, no stand-in), each page carries its siteNav, extract reads it back, and the build has no error', async () => {
+    const r = await buildSite(files(), cfg({ nav: { title: 'T', home: 'index.md', pages: ['unit 1/intro.md', 'unit2/gases.md'] }, index: { mode: 'off' } }), await env());
+    expect(r.report.errors).toEqual([]);
+    const html = dec(r.files.get('unit2/gases.md.html'));
+    expect(navIn(r.files.get('unit2/gases.md.html'))).toEqual({ title: 'T', home: '../index.md.html', previous: { href: '../unit%201/intro.md.html', label: 'Intro' } });
+    const e = await env();
+    expect((e.carriers?.md as CarrierModule).extract(html)?.siteNav).toEqual(navIn(r.files.get('unit2/gases.md.html')));
+  });
+
   it('a pinned carrier that does not carry siteNav into its files is refused (nav-unsupported, once per kind, naming the pin), nothing built', async () => {
-    const r = await buildSite(files(), cfg({ nav: NAV, index: { mode: 'off' } }), await env());
+    const e = await env();
+    // the pinned carriers as a carrier before 1.4: siteNav dropped on assemble, absent on extract
+    const old = Object.fromEntries(Object.entries(e.carriers ?? {}).map(([k, c]) => [k, { ...(c as CarrierModule), assemble: (t: string, o: Parameters<CarrierModule['assemble']>[1]) => { const { siteNav: _drop, ...rest } = o; return (c as CarrierModule).assemble(t, rest); }, extract: (h: string) => { const x = (c as CarrierModule).extract(h); if (x) delete (x as { siteNav?: unknown }).siteNav; return x; } }])) as BuildEnv['carriers'];
+    const r = await buildSite(files(), cfg({ nav: NAV, index: { mode: 'off' } }), { ...e, carriers: old });
     expect(r.ok).toBe(false);
     expect(r.report.errors.map((x) => [x.code, x.target])).toEqual([['nav-unsupported', 'carriers.md'], ['nav-unsupported', 'carriers.slides']]);
     expect(r.report.errors[0]?.message).toContain(`orz-mdhtml ${PINS.md} does not carry it`);
